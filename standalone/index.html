@@ -1,10 +1,9 @@
-<!---->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PDF Editor – No Render Conflicts</title>
+    <title>PDF Editor – Delete Any Item</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
         .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -24,6 +23,8 @@
         .toolbar button.success:hover { background: #1e7e34; }
         .toolbar button.secondary { background: #6c757d; }
         .toolbar button.secondary:hover { background: #5a6268; }
+        .toolbar button.delete-selected { background: #dc3545; }
+        .toolbar button.delete-selected:hover { background: #a71d2a; }
         .canvas-wrapper { position: relative; border: 1px solid #ddd; border-radius: 6px; background: #fff; overflow: auto; }
         canvas { display: block; width: 100%; height: auto; cursor: default; }
         canvas.dragging { cursor: grabbing; }
@@ -34,12 +35,13 @@
         .object-tag .color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #ccc; }
         .object-tag .edit-btn { background: none; border: none; color: #007bff; cursor: pointer; font-size: 14px; padding: 0 4px; }
         .object-tag .delete-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; font-size: 16px; padding: 0 4px; }
+        .object-tag .delete-btn:hover { color: #a71d2a; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🖋️ PDF Editor – Stable & Fast</h1>
-    <p>Upload PDF ➕ Add text ➡️ Double‑click to edit – smooth dragging with no render conflicts.</p>
+    <h1>🖋️ PDF Editor – Delete Any Item</h1>
+    <p>Upload PDF ➕ Add text ➡️ Double‑click to edit – then click <strong>Delete Selected</strong> or press <kbd>Delete</kbd>.</p>
 
     <div class="toolbar">
         <label>Upload PDF <input type="file" id="fileInput" accept=".pdf" /></label>
@@ -73,7 +75,8 @@
         </div>
         <button id="actionBtn">➕ Add Text</button>
         <button id="cancelBtn" class="secondary" style="display:none;">✖ Cancel</button>
-        <button id="clearBtn" class="danger">🗑️ Clear</button>
+        <button id="deleteSelectedBtn" class="delete-selected" style="display:none;">🗑️ Delete Selected</button>
+        <button id="clearBtn" class="danger">🗑️ Clear All</button>
         <button id="saveBtn" class="success">💾 Save PDF</button>
     </div>
 
@@ -102,6 +105,7 @@
         const coverToggle = document.getElementById('coverToggle');
         const actionBtn = document.getElementById('actionBtn');
         const cancelBtn = document.getElementById('cancelBtn');
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
         const clearBtn = document.getElementById('clearBtn');
         const saveBtn = document.getElementById('saveBtn');
         const canvas = document.getElementById('pdfCanvas');
@@ -122,9 +126,9 @@
         let draggingItem = null;
         let dragOffsetX = 0, dragOffsetY = 0;
 
-        // Render task management
-        let renderTask = null;          // current pdf.js render task
-        let renderScheduled = false;    // throttle flag
+        // Render lock
+        let isRendering = false;
+        let pendingRender = false;
 
         // ----- Font helpers -----
         function getCanvasFont(fontName, size) {
@@ -165,25 +169,17 @@
             return { width, height };
         }
 
-        // ----- Core render function (with cancellation and throttling) -----
+        // ----- Core render (with lock) -----
         async function renderOverlay() {
-            // If a render is already scheduled, skip (throttle)
-            if (renderScheduled) return;
-            renderScheduled = true;
+            if (isRendering) { pendingRender = true; return; }
+            isRendering = true;
+            pendingRender = false;
 
             try {
-                // Cancel any ongoing render task
-                if (renderTask) {
-                    renderTask.cancel();
-                    renderTask = null;
-                }
-
-                // Reset transform
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
-
                 if (!pdfjsDoc) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    renderScheduled = false;
+                    isRendering = false;
                     return;
                 }
 
@@ -192,27 +188,21 @@
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
 
-                // Render PDF page (with cancel support)
                 const renderContext = { canvasContext: ctx, viewport: viewport };
-                renderTask = page.render(renderContext);
+                const renderTask = page.render(renderContext);
                 await renderTask.promise;
-                renderTask = null;
 
-                // Draw overlays
                 ctx.save();
                 for (let obj of objects) {
                     if (obj.type !== 'text') continue;
                     const { width, height } = getTextDimensions(obj.lines[0], obj.font, obj.size);
-                    const x = obj.x;
-                    const y = obj.y;
+                    const x = obj.x, y = obj.y;
 
-                    // Cover background
                     if (obj.cover && obj.bgColor) {
                         ctx.fillStyle = obj.bgColor;
                         ctx.fillRect(x, y, width, height);
                     }
 
-                    // Border
                     let borderColor = 'rgba(0,123,255,0.3)';
                     let borderWidth = 1;
                     let dash = [];
@@ -224,7 +214,6 @@
                     ctx.strokeRect(x, y, width, height);
                     ctx.setLineDash([]);
 
-                    // Text
                     ctx.font = getCanvasFont(obj.font, obj.size);
                     ctx.fillStyle = obj.color || '#ff0000';
                     ctx.textBaseline = 'top';
@@ -236,15 +225,16 @@
                 const editStatus = editingId !== null ? ' ✏️ Editing...' : '';
                 statusDiv.innerText = `📄 Page ${currentPageIndex+1} of ${pageCount} | ${objects.length} object(s)${editStatus}`;
             } catch (err) {
-                if (err.name === 'RenderingCancelledException') {
-                    // Expected when we cancel – ignore
-                } else {
-                    console.error('Render error:', err);
+                if (err.name !== 'RenderingCancelledException') {
+                    console.error(err);
                     statusDiv.innerText = '⚠️ Render error: ' + err.message;
                 }
             } finally {
-                renderScheduled = false;
-                renderTask = null;
+                isRendering = false;
+                if (pendingRender) {
+                    pendingRender = false;
+                    await renderOverlay();
+                }
             }
         }
 
@@ -266,6 +256,7 @@
             currentPageIndex = 0;
             actionBtn.textContent = '➕ Add Text';
             cancelBtn.style.display = 'none';
+            deleteSelectedBtn.style.display = 'none';
             await renderOverlay();
         }
 
@@ -310,7 +301,7 @@
             renderOverlay();
         }
 
-        // ----- Edit / Cancel -----
+        // ----- Edit / Cancel / Delete Selected -----
         function startEditing(id) {
             const obj = objects.find(o => o.id === id);
             if (!obj) return;
@@ -325,6 +316,7 @@
             coverToggle.checked = obj.cover !== undefined ? obj.cover : true;
             actionBtn.textContent = '🔄 Update Text';
             cancelBtn.style.display = 'inline-block';
+            deleteSelectedBtn.style.display = 'inline-block';
             renderOverlay();
         }
 
@@ -332,10 +324,18 @@
             editingId = null;
             actionBtn.textContent = '➕ Add Text';
             cancelBtn.style.display = 'none';
+            deleteSelectedBtn.style.display = 'none';
             renderOverlay();
         }
 
-        // ----- Delete / Clear -----
+        // Delete the currently selected object (the one being edited)
+        function deleteSelected() {
+            if (editingId === null) return;
+            if (!confirm('Delete this text object?')) return;
+            deleteObject(editingId);
+        }
+
+        // Delete by ID (used by × buttons and deleteSelected)
         function deleteObject(id) {
             objects = objects.filter(o => o.id !== id);
             if (editingId === id) cancelEditing();
@@ -343,6 +343,7 @@
             renderOverlay();
         }
 
+        // Clear all
         function clearAll() {
             if (objects.length === 0) return;
             if (confirm('Remove all added objects?')) {
@@ -397,7 +398,6 @@
                     const { width, height: textHeight } = getTextDimensions(obj.lines[0], obj.font, obj.size);
                     const pdfY = height - obj.y - textHeight;
 
-                    // Cover
                     if (obj.cover && obj.bgColor) {
                         const rgb = hexToRgb(obj.bgColor);
                         firstPage.drawRectangle({
@@ -409,7 +409,6 @@
                         });
                     }
 
-                    // Text
                     const textRgb = hexToRgb(obj.color || '#ff0000');
                     const font = await pdfDoc.embedFont(PDFLib.StandardFonts[obj.font] || PDFLib.StandardFonts.Helvetica);
                     firstPage.drawText(obj.lines[0], {
@@ -446,7 +445,7 @@
             } : { r: 0, g: 0, b: 0 };
         }
 
-        // ----- Drag & Drop (with throttled rendering) -----
+        // ----- Drag & Drop (throttled) -----
         function getCanvasCoords(e) {
             const rect = canvas.getBoundingClientRect();
             return {
@@ -489,12 +488,11 @@
                 if (obj) {
                     obj.x = x - dragOffsetX;
                     obj.y = y - dragOffsetY;
-                    // Throttle rendering to avoid overwhelming
                     if (!moveTimeout) {
                         moveTimeout = setTimeout(() => {
                             renderOverlay();
                             moveTimeout = null;
-                        }, 16); // ~60fps
+                        }, 16);
                     }
                 }
                 e.preventDefault();
@@ -507,7 +505,6 @@
             if (draggingItem !== null) {
                 draggingItem = null;
                 canvas.classList.remove('dragging');
-                // Ensure final render after drag
                 if (moveTimeout) {
                     clearTimeout(moveTimeout);
                     moveTimeout = null;
@@ -526,10 +523,19 @@
             }
         }
 
+        // ----- Keyboard: Delete key while editing -----
+        function onKeyDown(e) {
+            if (editingId !== null && (e.key === 'Delete' || e.key === 'Backspace')) {
+                e.preventDefault();
+                deleteSelected();
+            }
+        }
+
         // ----- Register Events -----
         fileInput.addEventListener('change', (e) => { if (e.target.files[0]) loadPDF(e.target.files[0]); });
         actionBtn.addEventListener('click', saveText);
         cancelBtn.addEventListener('click', cancelEditing);
+        deleteSelectedBtn.addEventListener('click', deleteSelected);
         clearBtn.addEventListener('click', clearAll);
         saveBtn.addEventListener('click', savePDF);
         textInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveText(); });
@@ -538,6 +544,7 @@
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
         canvas.addEventListener('dblclick', onDoubleClick);
+        window.addEventListener('keydown', onKeyDown);
 
         // Touch support
         canvas.addEventListener('touchstart', (e) => {
@@ -556,7 +563,7 @@
             if (draggingItem !== null) window.dispatchEvent(new MouseEvent('mouseup', {}));
         }, { passive: false });
 
-        console.log('✅ Editor ready – render conflicts eliminated.');
+        console.log('✅ Editor ready – delete selected button and keyboard support added.');
     })();
 </script>
 </body>
