@@ -1,47 +1,63 @@
+<!--07111977-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Static PDF Editor (Drag & Drop)</title>
+    <title>Static PDF Editor (Colors & Cover)</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; align-items: end; }
         .toolbar label { font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
-        .toolbar input, .toolbar button { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-        .toolbar button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
+        .toolbar input[type="text"], .toolbar input[type="number"] { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; width: 90px; }
+        .toolbar input[type="color"] { width: 40px; height: 40px; padding: 2px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
+        .toolbar .checkbox-group { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+        .toolbar button { padding: 8px 16px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
         .toolbar button:hover { background: #0056b3; }
         .toolbar button.danger { background: #dc3545; }
         .toolbar button.danger:hover { background: #a71d2a; }
         .toolbar button.success { background: #28a745; }
         .toolbar button.success:hover { background: #1e7e34; }
-
+        .toolbar button.secondary { background: #6c757d; }
+        .toolbar button.secondary:hover { background: #5a6268; }
         .canvas-wrapper { position: relative; border: 1px solid #ddd; border-radius: 6px; background: #fff; overflow: auto; }
         canvas { display: block; width: 100%; height: auto; cursor: default; }
         canvas.dragging { cursor: grabbing; }
         canvas.drag-hover { cursor: grab; }
-
         #status { margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 6px; font-family: monospace; min-height: 1.5em; }
         .object-list { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 6px; }
         .object-tag { background: #e9ecef; padding: 4px 10px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
-        .object-tag button { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; font-size: 16px; padding: 0 4px; line-height: 1; }
-        .object-tag button:hover { color: #a71d2a; }
+        .object-tag .color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #ccc; }
+        .object-tag .edit-btn { background: none; border: none; color: #007bff; cursor: pointer; font-size: 14px; padding: 0 4px; }
+        .object-tag .delete-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; font-size: 16px; padding: 0 4px; }
+        .editing-indicator { background: #ffc107; color: #212529; padding: 2px 10px; border-radius: 20px; font-size: 13px; font-weight: 600; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>📄 Drag & Drop PDF Editor</h1>
-    <p>Upload a PDF ➕ Add text ➡️ <strong>Drag the red text anywhere</strong> ➡️ 💾 Save.</p>
+    <h1>🎨 PDF Editor: Color & Cover</h1>
+    <p>Upload PDF ➕ Add text ➡️ <strong>Cover original text</strong> with a background fill ➡️ Choose any color.</p>
 
     <div class="toolbar">
         <label>Upload PDF <input type="file" id="fileInput" accept=".pdf"></label>
-        <label>Text <input type="text" id="textInput" value="Hello World"></label>
+        
+        <label>Text <input type="text" id="textInput" value="Hello World" style="width:140px;"></label>
         <label>X <input type="number" id="xInput" value="50" step="1"></label>
         <label>Y <input type="number" id="yInput" value="50" step="1"></label>
         <label>Size <input type="number" id="sizeInput" value="24" step="1"></label>
-        <button id="addTextBtn">➕ Add Text</button>
-        <button id="clearBtn" class="danger">🗑️ Clear All</button>
+        
+        <label>Color <input type="color" id="colorInput" value="#ff0000"></label>
+        <label>Cover Fill <input type="color" id="bgColorInput" value="#ffffff"></label>
+        
+        <div class="checkbox-group">
+            <input type="checkbox" id="coverToggle" checked>
+            <label for="coverToggle" style="font-weight:400; cursor:pointer;">Cover original text</label>
+        </div>
+
+        <button id="actionBtn">➕ Add Text</button>
+        <button id="cancelBtn" class="secondary" style="display:none;">✖ Cancel</button>
+        <button id="clearBtn" class="danger">🗑️ Clear</button>
         <button id="saveBtn" class="success">💾 Save PDF</button>
     </div>
 
@@ -49,11 +65,11 @@
         <canvas id="pdfCanvas"></canvas>
     </div>
     
-    <div id="status">📌 Upload a PDF to get started. Drag the red text to reposition it.</div>
+    <div id="status">📌 Upload a PDF. Double‑click text to edit it.</div>
     <div id="objectList" class="object-list"></div>
 </div>
 
-<!-- Load libraries from CDN -->
+<!-- CDN Libraries -->
 <script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/pdfjs-dist@2.3.200/build/pdf.min.js"></script>
 
@@ -65,7 +81,11 @@
         const xInput = document.getElementById('xInput');
         const yInput = document.getElementById('yInput');
         const sizeInput = document.getElementById('sizeInput');
-        const addBtn = document.getElementById('addTextBtn');
+        const colorInput = document.getElementById('colorInput');
+        const bgColorInput = document.getElementById('bgColorInput');
+        const coverToggle = document.getElementById('coverToggle');
+        const actionBtn = document.getElementById('actionBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
         const clearBtn = document.getElementById('clearBtn');
         const saveBtn = document.getElementById('saveBtn');
         const canvas = document.getElementById('pdfCanvas');
@@ -75,34 +95,37 @@
 
         // ----- App state -----
         let pdfFile = null;
-        let pdfDoc = null;          // PDFLib
-        let pdfjsDoc = null;        // PDFJS
+        let pdfDoc = null;
+        let pdfjsDoc = null;
         let pageCount = 0;
         let currentPageIndex = 0;
         let scale = 1.5;
-        let objects = [];           // { id, type, x, y, lines, size, fontFamily, lineHeight, width, height }
+        let objects = [];
         let idCounter = 0;
-
-        // Drag state
+        let editingId = null;
         let draggingItem = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
+        let dragOffsetX = 0, dragOffsetY = 0;
 
-        // ----- Helper functions -----
+        // ----- Helpers -----
         function getTextDimensions(text, size) {
-            // Rough but effective bounding box for hit-testing and drawing
-            const width = text.length * size * 0.6;
-            const height = size * 1.2;
-            return { width, height };
+            return { width: text.length * size * 0.6, height: size * 1.2 };
         }
 
-        // ----- Render preview + overlay -----
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16) / 255,
+                g: parseInt(result[2], 16) / 255,
+                b: parseInt(result[3], 16) / 255
+            } : { r: 0, g: 0, b: 0 };
+        }
+
+        // ----- Render canvas preview -----
         async function renderOverlay() {
             if (!pdfjsDoc) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 return;
             }
-
             try {
                 const page = await pdfjsDoc.getPage(currentPageIndex + 1);
                 const viewport = page.getViewport({ scale: scale });
@@ -112,46 +135,44 @@
                 const renderContext = { canvasContext: ctx, viewport: viewport };
                 await page.render(renderContext).promise;
 
-                // Draw the text objects on top (in reverse order so newer ones are on top)
                 ctx.save();
                 for (let obj of objects) {
-                    if (obj.type === 'text') {
-                        const { width, height } = getTextDimensions(obj.lines[0], obj.size);
-                        const x = obj.x;
-                        const y = obj.y; // baseline
+                    if (obj.type !== 'text') continue;
+                    const { width, height } = getTextDimensions(obj.lines[0], obj.size);
+                    const x = obj.x, y = obj.y;
 
-                        // Draw a semi-transparent background for better visibility
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    // 1. Draw background fill (to cover original text)
+                    if (obj.cover && obj.bgColor) {
+                        ctx.fillStyle = obj.bgColor;
                         ctx.fillRect(x, y - height, width, height);
-
-                        // Draw border when dragging
-                        if (draggingItem === obj.id) {
-                            ctx.strokeStyle = '#ff00ff';
-                            ctx.lineWidth = 2;
-                            ctx.setLineDash([4, 4]);
-                            ctx.strokeRect(x, y - height, width, height);
-                            ctx.setLineDash([]);
-                        } else {
-                            // Light blue border for all objects
-                            ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
-                            ctx.lineWidth = 1;
-                            ctx.strokeRect(x, y - height, width, height);
-                        }
-
-                        // Draw text
-                        ctx.font = `${obj.size}px Arial, sans-serif`;
-                        ctx.fillStyle = '#ff0000';
-                        ctx.textBaseline = 'bottom';
-                        ctx.fillText(obj.lines[0], x, y);
                     }
+
+                    // 2. Draw border (for selection/editing)
+                    let borderColor = 'rgba(0,123,255,0.3)';
+                    let borderWidth = 1;
+                    let dash = [];
+                    if (draggingItem === obj.id) { borderColor = '#ff00ff'; borderWidth = 2; dash = [4,4]; }
+                    else if (editingId === obj.id) { borderColor = '#007bff'; borderWidth = 3; dash = []; }
+                    ctx.strokeStyle = borderColor;
+                    ctx.lineWidth = borderWidth;
+                    ctx.setLineDash(dash);
+                    ctx.strokeRect(x, y - height, width, height);
+                    ctx.setLineDash([]);
+
+                    // 3. Draw text
+                    ctx.font = `${obj.size}px Arial, sans-serif`;
+                    ctx.fillStyle = obj.color || '#ff0000';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(obj.lines[0], x, y);
                 }
                 ctx.restore();
 
                 updateObjectList();
-                statusDiv.innerText = `📄 Page ${currentPageIndex + 1} of ${pageCount} | ${objects.length} object(s) placed. Drag them!`;
+                const editStatus = editingId !== null ? ' ✏️ Editing...' : '';
+                statusDiv.innerText = `📄 Page ${currentPageIndex+1} of ${pageCount} | ${objects.length} object(s)${editStatus}`;
             } catch (e) {
-                console.error("Render error:", e);
-                statusDiv.innerText = "⚠️ Error rendering page.";
+                console.error(e);
+                statusDiv.innerText = "⚠️ Render error.";
             }
         }
 
@@ -160,6 +181,7 @@
             pdfFile = file;
             objects = [];
             idCounter = 0;
+            editingId = null;
             draggingItem = null;
             const arrayBuffer = await file.arrayBuffer();
 
@@ -170,104 +192,153 @@
             pdfjsDoc = await loadingTask.promise;
 
             currentPageIndex = 0;
+            actionBtn.textContent = '➕ Add Text';
+            cancelBtn.style.display = 'none';
             await renderOverlay();
         }
 
-        // ----- Add text -----
-        function addTextToState() {
-            if (!pdfDoc) {
-                alert('Please upload a PDF first.');
-                return;
-            }
+        // ----- Save (Add or Update) text -----
+        function saveText() {
+            if (!pdfDoc) { alert('Please upload a PDF first.'); return; }
 
             const text = textInput.value || 'Hello';
             const x = parseFloat(xInput.value) || 50;
             const y = parseFloat(yInput.value) || 50;
             const size = parseFloat(sizeInput.value) || 24;
+            const color = colorInput.value;
+            const bgColor = coverToggle.checked ? bgColorInput.value : null;
+            const cover = coverToggle.checked;
 
-            const obj = {
-                id: idCounter++,
-                type: 'text',
-                x: x,
-                y: y,
-                lines: [text],
-                size: size,
-                fontFamily: 'Helvetica',
-                lineHeight: 1.2,
-                width: 200,
-                height: size * 1.2
-            };
-            objects.push(obj);
+            if (editingId !== null) {
+                const obj = objects.find(o => o.id === editingId);
+                if (obj) {
+                    obj.lines = [text]; obj.x = x; obj.y = y; obj.size = size;
+                    obj.color = color; obj.bgColor = bgColor; obj.cover = cover;
+                }
+                cancelEditing();
+            } else {
+                objects.push({
+                    id: idCounter++,
+                    type: 'text',
+                    lines: [text],
+                    x, y, size,
+                    color: color,
+                    bgColor: bgColor,
+                    cover: cover,
+                    lineHeight: 1.2
+                });
+            }
             renderOverlay();
         }
 
-        // ----- Clear all objects -----
-        function clearAll() {
-            if (objects.length === 0) return;
-            if (confirm('Remove all added objects?')) {
-                objects = [];
-                idCounter = 0;
-                draggingItem = null;
-                renderOverlay();
-            }
+        // ----- Edit / Cancel -----
+        function startEditing(id) {
+            const obj = objects.find(o => o.id === id);
+            if (!obj) return;
+            editingId = id;
+            textInput.value = obj.lines[0];
+            xInput.value = obj.x;
+            yInput.value = obj.y;
+            sizeInput.value = obj.size;
+            colorInput.value = obj.color || '#ff0000';
+            bgColorInput.value = obj.bgColor || '#ffffff';
+            coverToggle.checked = obj.cover !== undefined ? obj.cover : true;
+            actionBtn.textContent = '🔄 Update Text';
+            cancelBtn.style.display = 'inline-block';
+            renderOverlay();
         }
 
-        // ----- Delete single object (by ID) -----
+        function cancelEditing() {
+            editingId = null;
+            actionBtn.textContent = '➕ Add Text';
+            cancelBtn.style.display = 'none';
+            renderOverlay();
+        }
+
+        // ----- Delete / Clear -----
         function deleteObject(id) {
             objects = objects.filter(o => o.id !== id);
+            if (editingId === id) cancelEditing();
             if (draggingItem === id) draggingItem = null;
             renderOverlay();
         }
 
-        // ----- Update the tag list UI -----
+        function clearAll() {
+            if (objects.length === 0) return;
+            if (confirm('Remove all added objects?')) {
+                objects = []; idCounter = 0; editingId = null; draggingItem = null;
+                cancelEditing();
+                renderOverlay();
+            }
+        }
+
+        // ----- UI List -----
         function updateObjectList() {
             if (objects.length === 0) {
-                objectListDiv.innerHTML = '<span style="color: #6c757d; font-size: 14px;">No objects added yet.</span>';
+                objectListDiv.innerHTML = '<span style="color: #6c757d; font-size: 14px;">No objects added.</span>';
                 return;
             }
             let html = '';
             for (let obj of objects) {
-                html += `<span class="object-tag">
+                const isEditing = (obj.id === editingId);
+                const dotColor = obj.color || '#ff0000';
+                html += `<span class="object-tag" style="${isEditing ? 'background: #ffc107;' : ''}">
+                            <span class="color-dot" style="background:${dotColor};"></span>
                             ${obj.lines[0]} (${Math.round(obj.x)}, ${Math.round(obj.y)})
-                            <button data-id="${obj.id}" class="delete-btn" title="Delete this object">×</button>
+                            <button class="edit-btn" data-id="${obj.id}">✏️</button>
+                            <button class="delete-btn" data-id="${obj.id}">×</button>
                          </span>`;
             }
             objectListDiv.innerHTML = html;
-            // Attach delete events
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startEditing(parseInt(btn.dataset.id, 10));
+                });
+            });
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const id = parseInt(btn.dataset.id, 10);
-                    deleteObject(id);
+                    deleteObject(parseInt(btn.dataset.id, 10));
                 });
             });
         }
 
-        // ----- Save PDF -----
+        // ----- Save PDF with Colors & Cover -----
         async function savePDF() {
-            if (!pdfDoc || !pdfFile) {
-                alert('No PDF loaded.');
-                return;
-            }
-
+            if (!pdfDoc || !pdfFile) { alert('No PDF loaded.'); return; }
             try {
                 const pages = pdfDoc.getPages();
                 const firstPage = pages[0];
                 const { height } = firstPage.getSize();
-                const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
 
-                // Apply all objects
                 for (let obj of objects) {
-                    if (obj.type === 'text') {
-                        const pdfY = height - obj.y; // Convert canvas Y (top-left) to PDF Y (bottom-left)
-                        firstPage.drawText(obj.lines[0], {
+                    if (obj.type !== 'text') continue;
+                    const { width, height: textHeight } = getTextDimensions(obj.lines[0], obj.size);
+                    const pdfY = height - obj.y; // baseline from bottom
+
+                    // 1. Draw Cover Background (if enabled)
+                    if (obj.cover && obj.bgColor) {
+                        const rgb = hexToRgb(obj.bgColor);
+                        firstPage.drawRectangle({
                             x: obj.x,
-                            y: pdfY,
-                            size: obj.size,
-                            font: font,
-                            color: PDFLib.rgb(0, 0, 0),
+                            y: pdfY - textHeight,
+                            width: width,
+                            height: textHeight,
+                            color: PDFLib.rgb(rgb.r, rgb.g, rgb.b),
                         });
                     }
+
+                    // 2. Draw Text
+                    const textRgb = hexToRgb(obj.color || '#ff0000');
+                    const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+                    firstPage.drawText(obj.lines[0], {
+                        x: obj.x,
+                        y: pdfY,
+                        size: obj.size,
+                        font: font,
+                        color: PDFLib.rgb(textRgb.r, textRgb.g, textRgb.b),
+                    });
                 }
 
                 const pdfBytes = await pdfDoc.save();
@@ -279,143 +350,104 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
-
-                statusDiv.innerText = '✅ PDF saved and downloaded successfully!';
+                statusDiv.innerText = '✅ PDF saved successfully!';
             } catch (e) {
                 console.error(e);
-                alert('Failed to save PDF: ' + e.message);
+                alert('Save failed: ' + e.message);
             }
         }
 
-        // ----- DRAG AND DROP LOGIC (Mouse Events) -----
+        // ----- Drag & Drop Logic (unchanged, works with new props) -----
         function getCanvasCoords(e) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;   // canvas physical size / CSS size
-            const scaleY = canvas.height / rect.height;
             return {
-                x: (e.clientX - rect.left) * scaleX,
-                y: (e.clientY - rect.top) * scaleY
+                x: (e.clientX - rect.left) * (canvas.width / rect.width),
+                y: (e.clientY - rect.top) * (canvas.height / rect.height)
             };
         }
-
         function findObjectAt(mx, my) {
-            // Iterate backwards so topmost objects (last added) are selected first
             for (let i = objects.length - 1; i >= 0; i--) {
                 const obj = objects[i];
                 if (obj.type !== 'text') continue;
                 const { width, height } = getTextDimensions(obj.lines[0], obj.size);
-                // Bounding box: from (x, y - height) to (x + width, y)
-                if (mx >= obj.x && mx <= obj.x + width &&
-                    my >= obj.y - height && my <= obj.y) {
-                    return obj;
-                }
+                if (mx >= obj.x && mx <= obj.x + width && my >= obj.y - height && my <= obj.y) return obj;
             }
             return null;
         }
-
         function onMouseDown(e) {
             if (objects.length === 0) return;
             const { x, y } = getCanvasCoords(e);
             const hit = findObjectAt(x, y);
             if (hit) {
                 draggingItem = hit.id;
-                // offset from the object's top-left corner (baseline y - height)
                 const { height } = getTextDimensions(hit.lines[0], hit.size);
                 dragOffsetX = x - hit.x;
-                dragOffsetY = y - (hit.y - height); // offset from top-left corner
+                dragOffsetY = y - (hit.y - height);
                 canvas.classList.add('dragging');
-                canvas.classList.remove('drag-hover');
-                renderOverlay(); // to show the purple border
+                renderOverlay();
                 e.preventDefault();
             }
         }
-
         function onMouseMove(e) {
             const { x, y } = getCanvasCoords(e);
             if (draggingItem !== null) {
                 const obj = objects.find(o => o.id === draggingItem);
                 if (obj) {
                     const { height } = getTextDimensions(obj.lines[0], obj.size);
-                    // Set new position based on top-left corner offset
                     obj.x = x - dragOffsetX;
-                    obj.y = (y - dragOffsetY) + height; // convert back to baseline
-                    renderOverlay(); // re-render to show updated position
+                    obj.y = (y - dragOffsetY) + height;
+                    renderOverlay();
                 }
                 e.preventDefault();
             } else {
-                // Change cursor if hovering over an object
-                const hit = findObjectAt(x, y);
-                if (hit) {
-                    canvas.classList.add('drag-hover');
-                    canvas.style.cursor = 'grab';
-                } else {
-                    canvas.classList.remove('drag-hover');
-                    canvas.style.cursor = 'default';
-                }
+                canvas.style.cursor = findObjectAt(x, y) ? 'grab' : 'default';
             }
         }
-
         function onMouseUp(e) {
             if (draggingItem !== null) {
                 draggingItem = null;
                 canvas.classList.remove('dragging');
-                canvas.style.cursor = 'default';
-                renderOverlay(); // remove the purple border
+                renderOverlay();
                 e.preventDefault();
             }
         }
+        function onDoubleClick(e) {
+            const { x, y } = getCanvasCoords(e);
+            const hit = findObjectAt(x, y);
+            if (hit) { startEditing(hit.id); e.preventDefault(); }
+        }
 
-        // ----- Register events -----
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) loadPDF(file);
-        });
-
-        addBtn.addEventListener('click', addTextToState);
+        // ----- Register Events -----
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) loadPDF(e.target.files[0]); });
+        actionBtn.addEventListener('click', saveText);
+        cancelBtn.addEventListener('click', cancelEditing);
         clearBtn.addEventListener('click', clearAll);
         saveBtn.addEventListener('click', savePDF);
+        textInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') saveText(); });
 
-        // Canvas mouse events for drag & drop
         canvas.addEventListener('mousedown', onMouseDown);
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
+        canvas.addEventListener('dblclick', onDoubleClick);
 
-        // Touch events for mobile drag support
+        // Touch support
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            const touch = e.touches[0];
-            const mouseEvent = new MouseEvent('mousedown', {
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-            });
-            canvas.dispatchEvent(mouseEvent);
+            const t = e.touches[0];
+            canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
         }, { passive: false });
-
         window.addEventListener('touchmove', (e) => {
             if (draggingItem !== null) {
                 e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = new MouseEvent('mousemove', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                });
-                window.dispatchEvent(mouseEvent);
+                const t = e.touches[0];
+                window.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY }));
             }
         }, { passive: false });
-
-        window.addEventListener('touchend', (e) => {
-            if (draggingItem !== null) {
-                const mouseEvent = new MouseEvent('mouseup', {});
-                window.dispatchEvent(mouseEvent);
-            }
+        window.addEventListener('touchend', () => {
+            if (draggingItem !== null) window.dispatchEvent(new MouseEvent('mouseup', {}));
         }, { passive: false });
 
-        // Press Enter in text input to add quickly
-        textInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addTextToState();
-        });
-
-        console.log('✅ Static PDF Editor with Drag & Drop ready!');
+        console.log('✅ Static PDF Editor with Colors & Cover ready!');
     })();
 </script>
 </body>
