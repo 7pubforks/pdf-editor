@@ -3,344 +3,622 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PDF Editor – Modern</title>
-    <!-- Google Font: Inter -->
+    <title>PDF Editor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet" />
     <style>
-        /* ----- Reset & Base ----- */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* ── Reset & Base ── */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(145deg, #f8fafc 0%, #eef2ff 100%);
-            min-height: 100vh;
-            padding: 30px 20px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f4f7f9;
+            margin: 0;
+            padding: 24px;
+            color: #2c3e50;
             display: flex;
             justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        /* ── Main Card ── */
+        .app {
+            background: #ffffff;
+            width: 100%;
+            max-width: 1200px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(26, 75, 96, 0.08);
+            padding: 32px 36px 36px;
+            border: 1px solid #eef2f5;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
+            border-bottom: 2px solid #eef2f5;
+            padding-bottom: 18px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #1a4b60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 2px 8px rgba(26, 75, 96, 0.15);
+        }
+
+        .header-title {
+            color: #1a4b60;
+            font-size: 1.4rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .header-sub {
+            font-size: 0.75rem;
+            color: #6cb4db;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 1px;
+        }
+
+        .header-right {
+            color: #27ae60;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #e8f8f5;
+            padding: 6px 14px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+            white-space: nowrap;
+        }
+
+        .header-right .badge-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #27ae60;
+            margin-right: 4px;
+        }
+
+        /* ── Main Content Grid ── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 32px;
+            align-items: start;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sidebar-section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 18px 20px 20px;
+            border: 1px solid #eef2f5;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 4px;
+            letter-spacing: 0.02em;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            background: white;
+            transition: border-color 0.2s, box-shadow 0.2s;
             color: #1e293b;
         }
 
-        .container {
-            max-width: 1200px;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border-radius: 32px;
-            padding: 32px 36px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 20, 80, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            transition: all 0.2s ease;
-        }
-
-        /* ----- Header ----- */
-        h1 {
-            font-size: 28px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 4px;
-            letter-spacing: -0.02em;
-        }
-        .subhead {
-            color: #64748b;
-            font-size: 15px;
-            font-weight: 400;
-            margin-bottom: 24px;
-            border-left: 3px solid #818cf8;
-            padding-left: 16px;
-            background: rgba(255,255,255,0.4);
-            border-radius: 0 8px 8px 0;
-        }
-
-        /* ----- Toolbar (Modern) ----- */
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px 18px;
-            margin: 24px 0 28px 0;
-            padding: 20px 24px;
-            background: #f1f5f9;
-            border-radius: 20px;
-            align-items: end;
-            border: 1px solid rgba(255, 255, 255, 0.6);
-        }
-        .toolbar label {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: #475569;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .toolbar input,
-        .toolbar select {
-            padding: 10px 14px;
-            border: 2px solid #e2e8f0;
-            border-radius: 14px;
-            font-size: 14px;
-            font-family: 'Inter', sans-serif;
-            background: white;
-            transition: all 0.2s ease;
-            min-width: 70px;
-            color: #0f172a;
-        }
-        .toolbar input[type="text"] { min-width: 130px; }
-        .toolbar input[type="number"] { min-width: 70px; }
-        .toolbar select { min-width: 120px; cursor: pointer; }
-        .toolbar input:focus,
-        .toolbar select:focus {
+        .form-control:focus {
             outline: none;
-            border-color: #818cf8;
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+            border-color: #1a4b60;
+            box-shadow: 0 0 0 3px rgba(26, 75, 96, 0.1);
         }
-        .toolbar input[type="color"] {
+
+        .form-control-sm {
+            padding: 6px 10px;
+            font-size: 0.8rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .form-color {
             width: 44px;
             height: 44px;
-            padding: 4px;
-            border-radius: 14px;
+            padding: 3px;
+            border-radius: 8px;
             cursor: pointer;
+            border: 1.5px solid #e2e8f0;
             background: white;
         }
 
-        .toolbar .checkbox-group {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 8px;
-            font-weight: 500;
-            font-size: 14px;
-            color: #334155;
-            padding-top: 6px;
-        }
-        .toolbar .checkbox-group input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: #4f46e5;
-            cursor: pointer;
-            border-radius: 6px;
+        .form-color:focus {
+            outline: none;
+            border-color: #1a4b60;
+            box-shadow: 0 0 0 3px rgba(26, 75, 96, 0.1);
         }
 
-        /* ----- Buttons (Modern) ----- */
-        .toolbar button {
-            padding: 10px 20px;
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: #334155;
+            padding-top: 2px;
+        }
+
+        .form-check input[type="checkbox"] {
+            width: 17px;
+            height: 17px;
+            accent-color: #1a4b60;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        /* ── Buttons ── */
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .btn {
+            padding: 8px 16px;
             border: none;
-            border-radius: 40px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 0.82rem;
             font-weight: 600;
             font-family: 'Inter', sans-serif;
-            color: white;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            letter-spacing: 0.01em;
             white-space: nowrap;
         }
-        .toolbar button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-        .toolbar button:active { transform: translateY(0); }
 
-        .btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
-        .btn-primary:hover { box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3); }
-
-        .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
-        .btn-success:hover { box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3); }
-
-        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
-        .btn-danger:hover { box-shadow: 0 8px 20px rgba(239, 68, 68, 0.25); }
-
-        .btn-secondary { background: #94a3b8; color: #1e293b; }
-        .btn-secondary:hover { background: #64748b; color: white; box-shadow: 0 8px 20px rgba(100, 116, 139, 0.2); }
-
-        .btn-delete { background: linear-gradient(135deg, #f59e0b, #d97706); }
-        .btn-delete:hover { box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3); }
-
-        /* ----- Canvas ----- */
-        .canvas-wrapper {
-            position: relative;
-            border-radius: 20px;
-            overflow: hidden;
-            background: white;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8);
-            border: 1px solid #e9edf4;
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
-        canvas {
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: #1a4b60;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #143a4b;
+            box-shadow: 0 4px 12px rgba(26, 75, 96, 0.25);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #1e8f4e;
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.25);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.2);
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #d68910;
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.2);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 0.75rem;
+        }
+
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* ── Canvas ── */
+        .canvas-wrapper {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #eef2f5;
+            position: relative;
+        }
+
+        .canvas-wrapper canvas {
             display: block;
             width: 100%;
             height: auto;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             cursor: default;
-            background: #ffffff;
         }
-        canvas.dragging { cursor: grabbing; }
-        canvas.drag-hover { cursor: grab; }
 
-        /* ----- Status Bar ----- */
-        #status {
+        .canvas-wrapper canvas.dragging {
+            cursor: grabbing;
+        }
+        .canvas-wrapper canvas.drag-hover {
+            cursor: grab;
+        }
+
+        /* ── Status Bar ── */
+        .status-bar {
             margin-top: 16px;
-            padding: 12px 18px;
+            padding: 10px 16px;
             background: #f8fafc;
-            border-radius: 40px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
             font-weight: 500;
-            color: #334155;
-            border: 1px solid #e9edf4;
-            display: inline-flex;
+            color: #475569;
+            border: 1px solid #eef2f5;
+            display: flex;
             align-items: center;
             gap: 8px;
-            width: auto;
             font-family: 'Inter', monospace;
         }
-        #status::before { content: '●'; color: #10b981; font-size: 10px; }
 
-        /* ----- Object List (Chips) ----- */
+        .status-bar .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #27ae60;
+            flex-shrink: 0;
+        }
+
+        /* ── Object List ── */
         .object-list {
-            margin-top: 18px;
+            margin-top: 14px;
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-            min-height: 40px;
+            gap: 6px;
+            min-height: 32px;
         }
+
         .object-tag {
             background: #f1f5f9;
-            padding: 6px 14px 6px 12px;
-            border-radius: 40px;
-            font-size: 13px;
+            padding: 4px 12px 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             border: 1.5px solid transparent;
             transition: all 0.15s ease;
             font-weight: 500;
             color: #1e293b;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
-        .object-tag:hover { background: #e9edf4; border-color: #cbd5e1; }
+
+        .object-tag:hover {
+            background: #e9edf4;
+            border-color: #cbd5e1;
+        }
+
         .object-tag.editing {
             background: #fef3c7;
             border-color: #f59e0b;
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
         }
+
         .object-tag .color-dot {
             display: inline-block;
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            border: 1px solid rgba(0,0,0,0.08);
+            border: 1px solid rgba(0, 0, 0, 0.06);
             flex-shrink: 0;
         }
-        .object-tag .edit-btn,
-        .object-tag .delete-btn {
+
+        .object-tag .tag-btn {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 15px;
+            font-size: 13px;
             padding: 0 2px;
             line-height: 1;
-            opacity: 0.6;
+            opacity: 0.5;
             transition: opacity 0.15s;
             display: inline-flex;
             align-items: center;
         }
-        .object-tag .edit-btn { color: #4f46e5; }
-        .object-tag .delete-btn { color: #ef4444; font-weight: 700; }
-        .object-tag .edit-btn:hover,
-        .object-tag .delete-btn:hover { opacity: 1; }
+
+        .object-tag .tag-btn:hover {
+            opacity: 1;
+        }
+
+        .object-tag .tag-edit {
+            color: #1a4b60;
+        }
+        .object-tag .tag-delete {
+            color: #e74c3c;
+            font-weight: 700;
+        }
 
         .empty-state {
             color: #94a3b8;
-            font-size: 14px;
+            font-size: 0.8rem;
             font-weight: 400;
-            padding: 6px 0;
+            padding: 4px 0;
         }
 
-        /* ----- Responsive tweaks ----- */
-        @media (max-width: 768px) {
-            .container { padding: 20px 16px; }
-            .toolbar { padding: 16px; gap: 12px; }
-            .toolbar label { font-size: 11px; }
-            .toolbar input, .toolbar select { padding: 8px 10px; font-size: 13px; min-width: 60px; }
-            .toolbar button { padding: 8px 14px; font-size: 13px; }
-            h1 { font-size: 22px; }
+        /* ── Responsive ── */
+        @media (max-width: 860px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .app {
+                padding: 20px;
+            }
+
+            .header-title {
+                font-size: 1.1rem;
+            }
         }
+
         @media (max-width: 480px) {
-            .toolbar { flex-direction: column; align-items: stretch; }
-            .toolbar label { width: 100%; }
-            .toolbar input, .toolbar select { width: 100%; }
-            .checkbox-group { justify-content: flex-start; }
+            body {
+                padding: 12px;
+            }
+            .app {
+                padding: 16px;
+            }
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .header-right {
+                justify-content: center;
+                font-size: 0.8rem;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .form-row-3 {
+                grid-template-columns: 1fr 1fr;
+            }
+            .btn-group {
+                flex-direction: column;
+            }
+            .btn {
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>🖋️ PDF Editor</h1>
-    <div class="subhead">
-        Upload a PDF · Add text · Drag to reposition · Double‑click to edit · Delete any item
-    </div>
 
-    <div class="toolbar">
-        <label>Upload <input type="file" id="fileInput" accept=".pdf" /></label>
-        <label>Text <input type="text" id="textInput" value="Hello World" /></label>
-        <label>X <input type="number" id="xInput" value="50" step="1" /></label>
-        <label>Y <input type="number" id="yInput" value="50" step="1" /></label>
-        <label>Size <input type="number" id="sizeInput" value="24" step="1" /></label>
-        <label>Font 
-            <select id="fontSelect">
-                <option value="Helvetica">Helvetica</option>
-                <option value="Helvetica-Bold">Helvetica Bold</option>
-                <option value="Helvetica-Oblique">Helvetica Oblique</option>
-                <option value="Helvetica-BoldOblique">Helvetica BoldOblique</option>
-                <option value="Times-Roman">Times Roman</option>
-                <option value="Times-Bold">Times Bold</option>
-                <option value="Times-Italic">Times Italic</option>
-                <option value="Times-BoldItalic">Times BoldItalic</option>
-                <option value="Courier">Courier</option>
-                <option value="Courier-Bold">Courier Bold</option>
-                <option value="Courier-Oblique">Courier Oblique</option>
-                <option value="Courier-BoldOblique">Courier BoldOblique</option>
-                <option value="Symbol">Symbol</option>
-                <option value="ZapfDingbats">ZapfDingbats</option>
-            </select>
-        </label>
-        <label>Color <input type="color" id="colorInput" value="#ff0000" /></label>
-        <label>Cover Fill <input type="color" id="bgColorInput" value="#ffffff" /></label>
-        <div class="checkbox-group">
-            <input type="checkbox" id="coverToggle" checked />
-            <label for="coverToggle" style="font-weight:400; cursor:pointer;">Cover original</label>
+<div class="app">
+    <!-- ─── Header ─── -->
+    <header class="header">
+        <div class="header-left">
+            <div class="header-logo">📄</div>
+            <div>
+                <div class="header-title">PDF Editor</div>
+                <div class="header-sub">Add · Edit · Drag · Save</div>
+            </div>
         </div>
-        <button id="actionBtn" class="btn-primary">➕ Add</button>
-        <button id="cancelBtn" class="btn-secondary" style="display:none;">✖ Cancel</button>
-        <button id="deleteSelectedBtn" class="btn-delete" style="display:none;">🗑️ Delete</button>
-        <button id="clearBtn" class="btn-danger">🗑️ Clear All</button>
-        <button id="saveBtn" class="btn-success">💾 Save PDF</button>
-    </div>
+        <div class="header-right">
+            <span class="badge-dot"></span>
+            <span id="statusBadge">Ready</span>
+        </div>
+    </header>
 
-    <div class="canvas-wrapper">
-        <canvas id="pdfCanvas" willReadFrequently="true"></canvas>
-    </div>
+    <!-- ─── Main Grid ─── -->
+    <div class="main-grid">
+        <!-- ─── Sidebar ─── -->
+        <aside class="sidebar">
+            <!-- File Upload -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Document</div>
+                <div class="form-group">
+                    <label class="form-label" for="fileInput">Upload PDF</label>
+                    <input type="file" id="fileInput" accept=".pdf" class="form-control form-control-sm" />
+                </div>
+            </div>
 
-    <div id="status">📌 Upload a PDF to get started</div>
-    <div id="objectList" class="object-list"><span class="empty-state">No objects added yet.</span></div>
+            <!-- Text Controls -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Text</div>
+                <div class="form-group">
+                    <label class="form-label" for="textInput">Content</label>
+                    <input type="text" id="textInput" value="Hello World" class="form-control form-control-sm" />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="xInput">X</label>
+                        <input type="number" id="xInput" value="50" step="1" class="form-control form-control-sm" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="yInput">Y</label>
+                        <input type="number" id="yInput" value="50" step="1" class="form-control form-control-sm" />
+                    </div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label class="form-label" for="sizeInput">Size</label>
+                        <input type="number" id="sizeInput" value="24" step="1" class="form-control form-control-sm" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="fontSelect">Font</label>
+                        <select id="fontSelect" class="form-control form-control-sm">
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Helvetica-Bold">Helvetica Bold</option>
+                            <option value="Helvetica-Oblique">Helvetica Oblique</option>
+                            <option value="Helvetica-BoldOblique">Helvetica BoldOblique</option>
+                            <option value="Times-Roman">Times Roman</option>
+                            <option value="Times-Bold">Times Bold</option>
+                            <option value="Times-Italic">Times Italic</option>
+                            <option value="Times-BoldItalic">Times BoldItalic</option>
+                            <option value="Courier">Courier</option>
+                            <option value="Courier-Bold">Courier Bold</option>
+                            <option value="Courier-Oblique">Courier Oblique</option>
+                            <option value="Courier-BoldOblique">Courier BoldOblique</option>
+                            <option value="Symbol">Symbol</option>
+                            <option value="ZapfDingbats">ZapfDingbats</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="colorInput">Color</label>
+                        <input type="color" id="colorInput" value="#e74c3c" class="form-color" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-row" style="align-items: end;">
+                        <div class="form-group">
+                            <label class="form-label" for="bgColorInput">Cover Fill</label>
+                            <input type="color" id="bgColorInput" value="#ffffff" class="form-color" />
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; padding-bottom: 4px;">
+                            <label class="form-check">
+                                <input type="checkbox" id="coverToggle" checked />
+                                Cover original
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Actions</div>
+                <div class="btn-group">
+                    <button id="actionBtn" class="btn btn-primary">➕ Add</button>
+                    <button id="cancelBtn" class="btn btn-secondary" style="display:none;">✖ Cancel</button>
+                    <button id="deleteSelectedBtn" class="btn btn-warning" style="display:none;">🗑️ Delete</button>
+                </div>
+                <div class="btn-group" style="margin-top: 8px;">
+                    <button id="clearBtn" class="btn btn-danger">🗑️ Clear All</button>
+                    <button id="saveBtn" class="btn btn-success">💾 Save PDF</button>
+                </div>
+            </div>
+
+            <!-- Object List -->
+            <div class="sidebar-section" style="flex:1;">
+                <div class="sidebar-section-title">Objects</div>
+                <div id="objectList" class="object-list"><span class="empty-state">No objects added</span></div>
+            </div>
+        </aside>
+
+        <!-- ─── Canvas ─── -->
+        <main class="canvas-wrapper">
+            <canvas id="pdfCanvas" willReadFrequently="true"></canvas>
+            <div class="status-bar">
+                <span class="status-dot"></span>
+                <span id="statusText">Upload a PDF to get started</span>
+            </div>
+        </main>
+    </div>
 </div>
 
-<!-- CDN Libraries -->
+<!-- ─── CDN Libraries ─── -->
 <script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/pdfjs-dist@2.3.200/build/pdf.min.js"></script>
 
 <script>
     (function() {
-        // ----- DOM refs -----
+        'use strict';
+
+        // ─── DOM refs ───
         const fileInput = document.getElementById('fileInput');
         const textInput = document.getElementById('textInput');
         const xInput = document.getElementById('xInput');
@@ -357,10 +635,11 @@
         const saveBtn = document.getElementById('saveBtn');
         const canvas = document.getElementById('pdfCanvas');
         const ctx = canvas.getContext('2d');
-        const statusDiv = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const statusBadge = document.getElementById('statusBadge');
         const objectListDiv = document.getElementById('objectList');
 
-        // ----- App state -----
+        // ─── State ───
         let pdfFile = null;
         let pdfDoc = null;
         let pdfjsDoc = null;
@@ -372,11 +651,10 @@
         let editingId = null;
         let draggingItem = null;
         let dragOffsetX = 0, dragOffsetY = 0;
-
         let isRendering = false;
         let pendingRender = false;
 
-        // ----- Font helpers -----
+        // ─── Font helpers ───
         function getCanvasFont(fontName, size) {
             const map = {
                 'Helvetica': 'Arial, Helvetica, sans-serif',
@@ -410,12 +688,21 @@
         }
 
         function getTextDimensions(text, fontName, size) {
-            const width = measureTextWidth(text, fontName, size);
-            const height = size * 1.2;
-            return { width, height };
+            return {
+                width: measureTextWidth(text, fontName, size),
+                height: size * 1.2
+            };
         }
 
-        // ----- Core render (with lock) -----
+        // ─── Set status ───
+        function setStatus(msg, isGood = true) {
+            statusText.textContent = msg;
+            statusBadge.textContent = isGood ? 'Ready' : 'Error';
+            const dot = document.querySelector('.status-dot');
+            if (dot) dot.style.background = isGood ? '#27ae60' : '#e74c3c';
+        }
+
+        // ─── Render ───
         async function renderOverlay() {
             if (isRendering) { pendingRender = true; return; }
             isRendering = true;
@@ -434,12 +721,11 @@
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
 
-                const renderContext = { canvasContext: ctx, viewport: viewport };
-                const renderTask = page.render(renderContext);
+                const renderTask = page.render({ canvasContext: ctx, viewport: viewport });
                 await renderTask.promise;
 
                 ctx.save();
-                for (let obj of objects) {
+                for (const obj of objects) {
                     if (obj.type !== 'text') continue;
                     const { width, height } = getTextDimensions(obj.lines[0], obj.font, obj.size);
                     const x = obj.x, y = obj.y;
@@ -449,11 +735,18 @@
                         ctx.fillRect(x, y, width, height);
                     }
 
-                    let borderColor = 'rgba(0,123,255,0.3)';
+                    let borderColor = 'rgba(26,75,96,0.2)';
                     let borderWidth = 1;
                     let dash = [];
-                    if (draggingItem === obj.id) { borderColor = '#ff00ff'; borderWidth = 2; dash = [4,4]; }
-                    else if (editingId === obj.id) { borderColor = '#007bff'; borderWidth = 3; dash = []; }
+                    if (draggingItem === obj.id) {
+                        borderColor = '#8b5cf6';
+                        borderWidth = 2;
+                        dash = [4, 4];
+                    } else if (editingId === obj.id) {
+                        borderColor = '#1a4b60';
+                        borderWidth = 2;
+                        dash = [];
+                    }
                     ctx.strokeStyle = borderColor;
                     ctx.lineWidth = borderWidth;
                     ctx.setLineDash(dash);
@@ -461,19 +754,20 @@
                     ctx.setLineDash([]);
 
                     ctx.font = getCanvasFont(obj.font, obj.size);
-                    ctx.fillStyle = obj.color || '#ff0000';
+                    ctx.fillStyle = obj.color || '#e74c3c';
                     ctx.textBaseline = 'top';
                     ctx.fillText(obj.lines[0], x, y);
                 }
                 ctx.restore();
 
                 updateObjectList();
-                const editStatus = editingId !== null ? ' ✏️ Editing...' : '';
-                statusDiv.innerText = `📄 Page ${currentPageIndex+1} of ${pageCount} · ${objects.length} object(s)${editStatus}`;
+                const count = objects.length;
+                const editStatus = editingId !== null ? ' · Editing' : '';
+                setStatus(`Page ${currentPageIndex+1} of ${pageCount} · ${count} object(s)${editStatus}`);
             } catch (err) {
                 if (err.name !== 'RenderingCancelledException') {
                     console.error(err);
-                    statusDiv.innerText = '⚠️ Render error: ' + err.message;
+                    setStatus('Render error: ' + err.message, false);
                 }
             } finally {
                 isRendering = false;
@@ -484,7 +778,7 @@
             }
         }
 
-        // ----- Load PDF -----
+        // ─── Load PDF ───
         async function loadPDF(file) {
             pdfFile = file;
             objects = [];
@@ -503,10 +797,11 @@
             actionBtn.textContent = '➕ Add';
             cancelBtn.style.display = 'none';
             deleteSelectedBtn.style.display = 'none';
+            setStatus(`Loaded: ${file.name} · ${pageCount} page(s)`);
             await renderOverlay();
         }
 
-        // ----- Save (Add or Update) text -----
+        // ─── Save text ───
         function saveText() {
             if (!pdfDoc) { alert('Please upload a PDF first.'); return; }
 
@@ -522,14 +817,7 @@
             if (editingId !== null) {
                 const obj = objects.find(o => o.id === editingId);
                 if (obj) {
-                    obj.lines = [text];
-                    obj.x = x;
-                    obj.y = y;
-                    obj.size = size;
-                    obj.font = font;
-                    obj.color = color;
-                    obj.bgColor = bgColor;
-                    obj.cover = cover;
+                    Object.assign(obj, { lines: [text], x, y, size, font, color, bgColor, cover });
                 }
                 cancelEditing();
             } else {
@@ -538,16 +826,16 @@
                     type: 'text',
                     lines: [text],
                     x, y, size,
-                    font: font,
-                    color: color,
-                    bgColor: bgColor,
-                    cover: cover
+                    font,
+                    color,
+                    bgColor,
+                    cover
                 });
             }
             renderOverlay();
         }
 
-        // ----- Edit / Cancel / Delete Selected -----
+        // ─── Edit / Cancel / Delete ───
         function startEditing(id) {
             const obj = objects.find(o => o.id === id);
             if (!obj) return;
@@ -557,7 +845,7 @@
             yInput.value = obj.y;
             sizeInput.value = obj.size;
             fontSelect.value = obj.font || 'Helvetica';
-            colorInput.value = obj.color || '#ff0000';
+            colorInput.value = obj.color || '#e74c3c';
             bgColorInput.value = obj.bgColor || '#ffffff';
             coverToggle.checked = obj.cover !== undefined ? obj.cover : true;
             actionBtn.textContent = '🔄 Update';
@@ -589,38 +877,41 @@
 
         function clearAll() {
             if (objects.length === 0) return;
-            if (confirm('Remove all added objects?')) {
-                objects = []; idCounter = 0; editingId = null; draggingItem = null;
-                cancelEditing();
-                renderOverlay();
-            }
+            if (!confirm('Remove all added objects?')) return;
+            objects = [];
+            idCounter = 0;
+            editingId = null;
+            draggingItem = null;
+            cancelEditing();
+            renderOverlay();
         }
 
-        // ----- UI List (Modern) -----
+        // ─── Object List ───
         function updateObjectList() {
             if (objects.length === 0) {
-                objectListDiv.innerHTML = '<span class="empty-state">No objects added yet.</span>';
+                objectListDiv.innerHTML = '<span class="empty-state">No objects added</span>';
                 return;
             }
             let html = '';
-            for (let obj of objects) {
+            for (const obj of objects) {
                 const isEditing = (obj.id === editingId);
-                const dotColor = obj.color || '#ff0000';
+                const dotColor = obj.color || '#e74c3c';
                 html += `<span class="object-tag ${isEditing ? 'editing' : ''}">
                             <span class="color-dot" style="background:${dotColor};"></span>
                             ${obj.lines[0]} (${Math.round(obj.x)}, ${Math.round(obj.y)})
-                            <button class="edit-btn" data-id="${obj.id}" title="Edit">✏️</button>
-                            <button class="delete-btn" data-id="${obj.id}" title="Delete">✕</button>
+                            <button class="tag-btn tag-edit" data-id="${obj.id}" title="Edit">✏️</button>
+                            <button class="tag-btn tag-delete" data-id="${obj.id}" title="Delete">✕</button>
                          </span>`;
             }
             objectListDiv.innerHTML = html;
-            document.querySelectorAll('.edit-btn').forEach(btn => {
+
+            document.querySelectorAll('.tag-edit').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     startEditing(parseInt(btn.dataset.id, 10));
                 });
             });
-            document.querySelectorAll('.delete-btn').forEach(btn => {
+            document.querySelectorAll('.tag-delete').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     deleteObject(parseInt(btn.dataset.id, 10));
@@ -628,7 +919,7 @@
             });
         }
 
-        // ----- Save PDF -----
+        // ─── Save PDF ───
         async function savePDF() {
             if (!pdfDoc || !pdfFile) { alert('No PDF loaded.'); return; }
             try {
@@ -636,7 +927,7 @@
                 const firstPage = pages[0];
                 const { height } = firstPage.getSize();
 
-                for (let obj of objects) {
+                for (const obj of objects) {
                     if (obj.type !== 'text') continue;
                     const { width, height: textHeight } = getTextDimensions(obj.lines[0], obj.font, obj.size);
                     const pdfY = height - obj.y - textHeight;
@@ -646,19 +937,19 @@
                         firstPage.drawRectangle({
                             x: obj.x,
                             y: pdfY,
-                            width: width,
+                            width,
                             height: textHeight,
                             color: PDFLib.rgb(rgb.r, rgb.g, rgb.b),
                         });
                     }
 
-                    const textRgb = hexToRgb(obj.color || '#ff0000');
+                    const textRgb = hexToRgb(obj.color || '#e74c3c');
                     const font = await pdfDoc.embedFont(PDFLib.StandardFonts[obj.font] || PDFLib.StandardFonts.Helvetica);
                     firstPage.drawText(obj.lines[0], {
                         x: obj.x,
                         y: pdfY + textHeight,
                         size: obj.size,
-                        font: font,
+                        font,
                         color: PDFLib.rgb(textRgb.r, textRgb.g, textRgb.b),
                     });
                 }
@@ -672,7 +963,7 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
-                statusDiv.innerText = '✅ PDF saved successfully!';
+                setStatus('✅ PDF saved successfully!');
             } catch (e) {
                 console.error(e);
                 alert('Save failed: ' + e.message);
@@ -688,7 +979,7 @@
             } : { r: 0, g: 0, b: 0 };
         }
 
-        // ----- Drag & Drop -----
+        // ─── Drag & Drop ───
         function getCanvasCoords(e) {
             const rect = canvas.getBoundingClientRect();
             return {
@@ -724,6 +1015,7 @@
         }
 
         let moveTimeout = null;
+
         function onMouseMove(e) {
             const { x, y } = getCanvasCoords(e);
             if (draggingItem !== null) {
@@ -761,9 +1053,7 @@
             e.preventDefault();
             const { x, y } = getCanvasCoords(e);
             const hit = findObjectAt(x, y);
-            if (hit) {
-                startEditing(hit.id);
-            }
+            if (hit) startEditing(hit.id);
         }
 
         function onKeyDown(e) {
@@ -773,8 +1063,11 @@
             }
         }
 
-        // ----- Register Events -----
-        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) loadPDF(e.target.files[0]); });
+        // ─── Events ───
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) loadPDF(e.target.files[0]);
+        });
+
         actionBtn.addEventListener('click', saveText);
         cancelBtn.addEventListener('click', cancelEditing);
         deleteSelectedBtn.addEventListener('click', deleteSelected);
@@ -794,6 +1087,7 @@
             const t = e.touches[0];
             canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
         }, { passive: false });
+
         window.addEventListener('touchmove', (e) => {
             if (draggingItem !== null) {
                 e.preventDefault();
@@ -801,11 +1095,13 @@
                 window.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY }));
             }
         }, { passive: false });
+
         window.addEventListener('touchend', () => {
             if (draggingItem !== null) window.dispatchEvent(new MouseEvent('mouseup', {}));
         }, { passive: false });
 
-        console.log('✅ Modern PDF Editor ready!');
+        setStatus('📄 Upload a PDF to get started');
+        console.log('✅ PDF Editor ready');
     })();
 </script>
 </body>
