@@ -1,9 +1,10 @@
+<!---->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor – Fixed & Safe</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Editor – No Render Conflicts</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
         .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -15,7 +16,7 @@
         .toolbar select { width: 130px; }
         .toolbar input[type="color"] { width: 40px; height: 40px; padding: 2px; }
         .toolbar .checkbox-group { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
-        .toolbar button { padding: 8px 16px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
+        .toolbar button { padding: 8px 16px; border-radius: 6px; font-size: 14px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
         .toolbar button:hover { background: #0056b3; }
         .toolbar button.danger { background: #dc3545; }
         .toolbar button.danger:hover { background: #a71d2a; }
@@ -37,15 +38,15 @@
 </head>
 <body>
 <div class="container">
-    <h1>🖋️ PDF Editor – Transform Safe</h1>
-    <p>Upload PDF ➕ Add text ➡️ Double‑click any text to edit it – no more flips!</p>
+    <h1>🖋️ PDF Editor – Stable & Fast</h1>
+    <p>Upload PDF ➕ Add text ➡️ Double‑click to edit – smooth dragging with no render conflicts.</p>
 
     <div class="toolbar">
-        <label>Upload PDF <input type="file" id="fileInput" accept=".pdf"></label>
-        <label>Text <input type="text" id="textInput" value="Hello World"></label>
-        <label>X <input type="number" id="xInput" value="50" step="1"></label>
-        <label>Y <input type="number" id="yInput" value="50" step="1"></label>
-        <label>Size <input type="number" id="sizeInput" value="24" step="1"></label>
+        <label>Upload PDF <input type="file" id="fileInput" accept=".pdf" /></label>
+        <label>Text <input type="text" id="textInput" value="Hello World" /></label>
+        <label>X <input type="number" id="xInput" value="50" step="1" /></label>
+        <label>Y <input type="number" id="yInput" value="50" step="1" /></label>
+        <label>Size <input type="number" id="sizeInput" value="24" step="1" /></label>
         <label>Font 
             <select id="fontSelect">
                 <option value="Helvetica">Helvetica</option>
@@ -64,10 +65,10 @@
                 <option value="ZapfDingbats">ZapfDingbats</option>
             </select>
         </label>
-        <label>Color <input type="color" id="colorInput" value="#ff0000"></label>
-        <label>Cover Fill <input type="color" id="bgColorInput" value="#ffffff"></label>
+        <label>Color <input type="color" id="colorInput" value="#ff0000" /></label>
+        <label>Cover Fill <input type="color" id="bgColorInput" value="#ffffff" /></label>
         <div class="checkbox-group">
-            <input type="checkbox" id="coverToggle" checked>
+            <input type="checkbox" id="coverToggle" checked />
             <label for="coverToggle" style="font-weight:400; cursor:pointer;">Cover original</label>
         </div>
         <button id="actionBtn">➕ Add Text</button>
@@ -77,7 +78,7 @@
     </div>
 
     <div class="canvas-wrapper">
-        <canvas id="pdfCanvas"></canvas>
+        <canvas id="pdfCanvas" willReadFrequently="true"></canvas>
     </div>
     
     <div id="status">📌 Upload a PDF. Double‑click any text to edit it.</div>
@@ -121,6 +122,10 @@
         let draggingItem = null;
         let dragOffsetX = 0, dragOffsetY = 0;
 
+        // Render task management
+        let renderTask = null;          // current pdf.js render task
+        let renderScheduled = false;    // throttle flag
+
         // ----- Font helpers -----
         function getCanvasFont(fontName, size) {
             const map = {
@@ -146,7 +151,6 @@
             return `${weight} ${style} ${size}px ${base}`;
         }
 
-        // ----- Accurate text measurement -----
         function measureTextWidth(text, fontName, size) {
             ctx.save();
             ctx.font = getCanvasFont(fontName, size);
@@ -161,26 +165,38 @@
             return { width, height };
         }
 
-        // ----- Render canvas (with transform reset) -----
+        // ----- Core render function (with cancellation and throttling) -----
         async function renderOverlay() {
-            // Reset any accidental transforms
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            // If a render is already scheduled, skip (throttle)
+            if (renderScheduled) return;
+            renderScheduled = true;
 
-            if (!pdfjsDoc) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                return;
-            }
             try {
+                // Cancel any ongoing render task
+                if (renderTask) {
+                    renderTask.cancel();
+                    renderTask = null;
+                }
+
+                // Reset transform
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+                if (!pdfjsDoc) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    renderScheduled = false;
+                    return;
+                }
+
                 const page = await pdfjsDoc.getPage(currentPageIndex + 1);
                 const viewport = page.getViewport({ scale: scale });
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
 
-                // Render PDF page (wrap in save/restore for safety)
-                ctx.save();
+                // Render PDF page (with cancel support)
                 const renderContext = { canvasContext: ctx, viewport: viewport };
-                await page.render(renderContext).promise;
-                ctx.restore();
+                renderTask = page.render(renderContext);
+                await renderTask.promise;
+                renderTask = null;
 
                 // Draw overlays
                 ctx.save();
@@ -188,7 +204,7 @@
                     if (obj.type !== 'text') continue;
                     const { width, height } = getTextDimensions(obj.lines[0], obj.font, obj.size);
                     const x = obj.x;
-                    const y = obj.y; // top-left
+                    const y = obj.y;
 
                     // Cover background
                     if (obj.cover && obj.bgColor) {
@@ -219,9 +235,16 @@
                 updateObjectList();
                 const editStatus = editingId !== null ? ' ✏️ Editing...' : '';
                 statusDiv.innerText = `📄 Page ${currentPageIndex+1} of ${pageCount} | ${objects.length} object(s)${editStatus}`;
-            } catch (e) {
-                console.error(e);
-                statusDiv.innerText = "⚠️ Render error.";
+            } catch (err) {
+                if (err.name === 'RenderingCancelledException') {
+                    // Expected when we cancel – ignore
+                } else {
+                    console.error('Render error:', err);
+                    statusDiv.innerText = '⚠️ Render error: ' + err.message;
+                }
+            } finally {
+                renderScheduled = false;
+                renderTask = null;
             }
         }
 
@@ -423,7 +446,7 @@
             } : { r: 0, g: 0, b: 0 };
         }
 
-        // ----- Drag & Drop -----
+        // ----- Drag & Drop (with throttled rendering) -----
         function getCanvasCoords(e) {
             const rect = canvas.getBoundingClientRect();
             return {
@@ -458,6 +481,7 @@
             }
         }
 
+        let moveTimeout = null;
         function onMouseMove(e) {
             const { x, y } = getCanvasCoords(e);
             if (draggingItem !== null) {
@@ -465,7 +489,13 @@
                 if (obj) {
                     obj.x = x - dragOffsetX;
                     obj.y = y - dragOffsetY;
-                    renderOverlay();
+                    // Throttle rendering to avoid overwhelming
+                    if (!moveTimeout) {
+                        moveTimeout = setTimeout(() => {
+                            renderOverlay();
+                            moveTimeout = null;
+                        }, 16); // ~60fps
+                    }
                 }
                 e.preventDefault();
             } else {
@@ -477,13 +507,18 @@
             if (draggingItem !== null) {
                 draggingItem = null;
                 canvas.classList.remove('dragging');
+                // Ensure final render after drag
+                if (moveTimeout) {
+                    clearTimeout(moveTimeout);
+                    moveTimeout = null;
+                }
                 renderOverlay();
                 e.preventDefault();
             }
         }
 
         function onDoubleClick(e) {
-            e.preventDefault(); // Prevent text selection or other browser actions
+            e.preventDefault();
             const { x, y } = getCanvasCoords(e);
             const hit = findObjectAt(x, y);
             if (hit) {
@@ -521,7 +556,7 @@
             if (draggingItem !== null) window.dispatchEvent(new MouseEvent('mouseup', {}));
         }, { passive: false });
 
-        console.log('✅ Editor ready with transform reset.');
+        console.log('✅ Editor ready – render conflicts eliminated.');
     })();
 </script>
 </body>
