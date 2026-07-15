@@ -1,17 +1,19 @@
-<!--07111977-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Static PDF Editor (Colors & Cover)</title>
+    <title>PDF Editor - Fonts, Colors, Cover, Fixed Coordinates</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; align-items: end; }
         .toolbar label { font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
-        .toolbar input[type="text"], .toolbar input[type="number"] { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; width: 90px; }
-        .toolbar input[type="color"] { width: 40px; height: 40px; padding: 2px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
+        .toolbar input, .toolbar select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .toolbar input[type="text"] { width: 140px; }
+        .toolbar input[type="number"] { width: 70px; }
+        .toolbar select { width: 130px; }
+        .toolbar input[type="color"] { width: 40px; height: 40px; padding: 2px; }
         .toolbar .checkbox-group { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
         .toolbar button { padding: 8px 16px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
         .toolbar button:hover { background: #0056b3; }
@@ -31,30 +33,43 @@
         .object-tag .color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #ccc; }
         .object-tag .edit-btn { background: none; border: none; color: #007bff; cursor: pointer; font-size: 14px; padding: 0 4px; }
         .object-tag .delete-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; font-size: 16px; padding: 0 4px; }
-        .editing-indicator { background: #ffc107; color: #212529; padding: 2px 10px; border-radius: 20px; font-size: 13px; font-weight: 600; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🎨 PDF Editor: Color & Cover</h1>
-    <p>Upload PDF ➕ Add text ➡️ <strong>Cover original text</strong> with a background fill ➡️ Choose any color.</p>
+    <h1>🖋️ PDF Editor – Fixed Coordinates</h1>
+    <p>Upload PDF ➕ Add text ➡️ <strong>Double‑click</strong> any text to edit it – X and Y are top‑left corners.</p>
 
     <div class="toolbar">
         <label>Upload PDF <input type="file" id="fileInput" accept=".pdf"></label>
-        
-        <label>Text <input type="text" id="textInput" value="Hello World" style="width:140px;"></label>
+        <label>Text <input type="text" id="textInput" value="Hello World"></label>
         <label>X <input type="number" id="xInput" value="50" step="1"></label>
         <label>Y <input type="number" id="yInput" value="50" step="1"></label>
         <label>Size <input type="number" id="sizeInput" value="24" step="1"></label>
-        
+        <label>Font 
+            <select id="fontSelect">
+                <option value="Helvetica">Helvetica</option>
+                <option value="Helvetica-Bold">Helvetica Bold</option>
+                <option value="Helvetica-Oblique">Helvetica Oblique</option>
+                <option value="Helvetica-BoldOblique">Helvetica BoldOblique</option>
+                <option value="Times-Roman">Times Roman</option>
+                <option value="Times-Bold">Times Bold</option>
+                <option value="Times-Italic">Times Italic</option>
+                <option value="Times-BoldItalic">Times BoldItalic</option>
+                <option value="Courier">Courier</option>
+                <option value="Courier-Bold">Courier Bold</option>
+                <option value="Courier-Oblique">Courier Oblique</option>
+                <option value="Courier-BoldOblique">Courier BoldOblique</option>
+                <option value="Symbol">Symbol</option>
+                <option value="ZapfDingbats">ZapfDingbats</option>
+            </select>
+        </label>
         <label>Color <input type="color" id="colorInput" value="#ff0000"></label>
         <label>Cover Fill <input type="color" id="bgColorInput" value="#ffffff"></label>
-        
         <div class="checkbox-group">
             <input type="checkbox" id="coverToggle" checked>
-            <label for="coverToggle" style="font-weight:400; cursor:pointer;">Cover original text</label>
+            <label for="coverToggle" style="font-weight:400; cursor:pointer;">Cover original</label>
         </div>
-
         <button id="actionBtn">➕ Add Text</button>
         <button id="cancelBtn" class="secondary" style="display:none;">✖ Cancel</button>
         <button id="clearBtn" class="danger">🗑️ Clear</button>
@@ -65,11 +80,10 @@
         <canvas id="pdfCanvas"></canvas>
     </div>
     
-    <div id="status">📌 Upload a PDF. Double‑click text to edit it.</div>
+    <div id="status">📌 Upload a PDF. Double‑click any text to edit it.</div>
     <div id="objectList" class="object-list"></div>
 </div>
 
-<!-- CDN Libraries -->
 <script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/pdfjs-dist@2.3.200/build/pdf.min.js"></script>
 
@@ -81,6 +95,7 @@
         const xInput = document.getElementById('xInput');
         const yInput = document.getElementById('yInput');
         const sizeInput = document.getElementById('sizeInput');
+        const fontSelect = document.getElementById('fontSelect');
         const colorInput = document.getElementById('colorInput');
         const bgColorInput = document.getElementById('bgColorInput');
         const coverToggle = document.getElementById('coverToggle');
@@ -106,21 +121,47 @@
         let draggingItem = null;
         let dragOffsetX = 0, dragOffsetY = 0;
 
-        // ----- Helpers -----
-        function getTextDimensions(text, size) {
-            return { width: text.length * size * 0.6, height: size * 1.2 };
+        // ----- Font helpers -----
+        function getCanvasFont(fontName, size) {
+            const map = {
+                'Helvetica': 'Arial, Helvetica, sans-serif',
+                'Helvetica-Bold': 'Arial, Helvetica, sans-serif',
+                'Helvetica-Oblique': 'Arial, Helvetica, sans-serif',
+                'Helvetica-BoldOblique': 'Arial, Helvetica, sans-serif',
+                'Times-Roman': 'Times New Roman, Times, serif',
+                'Times-Bold': 'Times New Roman, Times, serif',
+                'Times-Italic': 'Times New Roman, Times, serif',
+                'Times-BoldItalic': 'Times New Roman, Times, serif',
+                'Courier': 'Courier New, Courier, monospace',
+                'Courier-Bold': 'Courier New, Courier, monospace',
+                'Courier-Oblique': 'Courier New, Courier, monospace',
+                'Courier-BoldOblique': 'Courier New, Courier, monospace',
+                'Symbol': 'Symbol, sans-serif',
+                'ZapfDingbats': 'ZapfDingbats, sans-serif'
+            };
+            let weight = 'normal', style = 'normal';
+            const base = map[fontName] || 'Arial, sans-serif';
+            if (fontName.includes('Bold')) weight = 'bold';
+            if (fontName.includes('Oblique') || fontName.includes('Italic')) style = 'italic';
+            return `${weight} ${style} ${size}px ${base}`;
         }
 
-        function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16) / 255,
-                g: parseInt(result[2], 16) / 255,
-                b: parseInt(result[3], 16) / 255
-            } : { r: 0, g: 0, b: 0 };
+        // ----- Accurate text measurement -----
+        function measureTextWidth(text, fontName, size) {
+            ctx.save();
+            ctx.font = getCanvasFont(fontName, size);
+            const w = ctx.measureText(text).width;
+            ctx.restore();
+            return w;
         }
 
-        // ----- Render canvas preview -----
+        function getTextDimensions(text, fontName, size) {
+            const width = measureTextWidth(text, fontName, size);
+            const height = size * 1.2; // approximate cap height + descender space
+            return { width, height };
+        }
+
+        // ----- Render canvas -----
         async function renderOverlay() {
             if (!pdfjsDoc) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -138,16 +179,17 @@
                 ctx.save();
                 for (let obj of objects) {
                     if (obj.type !== 'text') continue;
-                    const { width, height } = getTextDimensions(obj.lines[0], obj.size);
-                    const x = obj.x, y = obj.y;
+                    const { width, height } = getTextDimensions(obj.lines[0], obj.font, obj.size);
+                    const x = obj.x;
+                    const y = obj.y; // top-left
 
-                    // 1. Draw background fill (to cover original text)
+                    // Cover background
                     if (obj.cover && obj.bgColor) {
                         ctx.fillStyle = obj.bgColor;
-                        ctx.fillRect(x, y - height, width, height);
+                        ctx.fillRect(x, y, width, height);
                     }
 
-                    // 2. Draw border (for selection/editing)
+                    // Border
                     let borderColor = 'rgba(0,123,255,0.3)';
                     let borderWidth = 1;
                     let dash = [];
@@ -156,13 +198,13 @@
                     ctx.strokeStyle = borderColor;
                     ctx.lineWidth = borderWidth;
                     ctx.setLineDash(dash);
-                    ctx.strokeRect(x, y - height, width, height);
+                    ctx.strokeRect(x, y, width, height);
                     ctx.setLineDash([]);
 
-                    // 3. Draw text
-                    ctx.font = `${obj.size}px Arial, sans-serif`;
+                    // Text
+                    ctx.font = getCanvasFont(obj.font, obj.size);
                     ctx.fillStyle = obj.color || '#ff0000';
-                    ctx.textBaseline = 'bottom';
+                    ctx.textBaseline = 'top';
                     ctx.fillText(obj.lines[0], x, y);
                 }
                 ctx.restore();
@@ -205,28 +247,39 @@
             const x = parseFloat(xInput.value) || 50;
             const y = parseFloat(yInput.value) || 50;
             const size = parseFloat(sizeInput.value) || 24;
+            const font = fontSelect.value;
             const color = colorInput.value;
             const bgColor = coverToggle.checked ? bgColorInput.value : null;
             const cover = coverToggle.checked;
 
             if (editingId !== null) {
+                // Update existing object – direct assignment of new values
                 const obj = objects.find(o => o.id === editingId);
                 if (obj) {
-                    obj.lines = [text]; obj.x = x; obj.y = y; obj.size = size;
-                    obj.color = color; obj.bgColor = bgColor; obj.cover = cover;
+                    obj.lines = [text];
+                    obj.x = x;
+                    obj.y = y;
+                    obj.size = size;
+                    obj.font = font;
+                    obj.color = color;
+                    obj.bgColor = bgColor;
+                    obj.cover = cover;
+                    console.log(`Updated object ${obj.id} to (${x}, ${y})`);
                 }
                 cancelEditing();
             } else {
-                objects.push({
+                const newObj = {
                     id: idCounter++,
                     type: 'text',
                     lines: [text],
                     x, y, size,
+                    font: font,
                     color: color,
                     bgColor: bgColor,
-                    cover: cover,
-                    lineHeight: 1.2
-                });
+                    cover: cover
+                };
+                objects.push(newObj);
+                console.log(`Added object ${newObj.id} at (${x}, ${y})`);
             }
             renderOverlay();
         }
@@ -236,16 +289,19 @@
             const obj = objects.find(o => o.id === id);
             if (!obj) return;
             editingId = id;
+            // Populate inputs exactly with the object's current values
             textInput.value = obj.lines[0];
             xInput.value = obj.x;
             yInput.value = obj.y;
             sizeInput.value = obj.size;
+            fontSelect.value = obj.font || 'Helvetica';
             colorInput.value = obj.color || '#ff0000';
             bgColorInput.value = obj.bgColor || '#ffffff';
             coverToggle.checked = obj.cover !== undefined ? obj.cover : true;
             actionBtn.textContent = '🔄 Update Text';
             cancelBtn.style.display = 'inline-block';
             renderOverlay();
+            console.log(`Editing object ${id} – current Y: ${obj.y}`);
         }
 
         function cancelEditing() {
@@ -304,7 +360,7 @@
             });
         }
 
-        // ----- Save PDF with Colors & Cover -----
+        // ----- Save PDF -----
         async function savePDF() {
             if (!pdfDoc || !pdfFile) { alert('No PDF loaded.'); return; }
             try {
@@ -314,27 +370,28 @@
 
                 for (let obj of objects) {
                     if (obj.type !== 'text') continue;
-                    const { width, height: textHeight } = getTextDimensions(obj.lines[0], obj.size);
-                    const pdfY = height - obj.y; // baseline from bottom
+                    const { width, height: textHeight } = getTextDimensions(obj.lines[0], obj.font, obj.size);
+                    // Convert canvas top-left Y to PDF bottom-left Y
+                    const pdfY = height - obj.y - textHeight;
 
-                    // 1. Draw Cover Background (if enabled)
+                    // Cover
                     if (obj.cover && obj.bgColor) {
                         const rgb = hexToRgb(obj.bgColor);
                         firstPage.drawRectangle({
                             x: obj.x,
-                            y: pdfY - textHeight,
+                            y: pdfY,
                             width: width,
                             height: textHeight,
                             color: PDFLib.rgb(rgb.r, rgb.g, rgb.b),
                         });
                     }
 
-                    // 2. Draw Text
+                    // Text
                     const textRgb = hexToRgb(obj.color || '#ff0000');
-                    const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+                    const font = await pdfDoc.embedFont(PDFLib.StandardFonts[obj.font] || PDFLib.StandardFonts.Helvetica);
                     firstPage.drawText(obj.lines[0], {
                         x: obj.x,
-                        y: pdfY,
+                        y: pdfY + textHeight, // baseline at bottom of box
                         size: obj.size,
                         font: font,
                         color: PDFLib.rgb(textRgb.r, textRgb.g, textRgb.b),
@@ -357,7 +414,16 @@
             }
         }
 
-        // ----- Drag & Drop Logic (unchanged, works with new props) -----
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16) / 255,
+                g: parseInt(result[2], 16) / 255,
+                b: parseInt(result[3], 16) / 255
+            } : { r: 0, g: 0, b: 0 };
+        }
+
+        // ----- Drag & Drop -----
         function getCanvasCoords(e) {
             const rect = canvas.getBoundingClientRect();
             return {
@@ -365,37 +431,40 @@
                 y: (e.clientY - rect.top) * (canvas.height / rect.height)
             };
         }
+
         function findObjectAt(mx, my) {
             for (let i = objects.length - 1; i >= 0; i--) {
                 const obj = objects[i];
                 if (obj.type !== 'text') continue;
-                const { width, height } = getTextDimensions(obj.lines[0], obj.size);
-                if (mx >= obj.x && mx <= obj.x + width && my >= obj.y - height && my <= obj.y) return obj;
+                const { width, height } = getTextDimensions(obj.lines[0], obj.font, obj.size);
+                if (mx >= obj.x && mx <= obj.x + width && my >= obj.y && my <= obj.y + height) {
+                    return obj;
+                }
             }
             return null;
         }
+
         function onMouseDown(e) {
             if (objects.length === 0) return;
             const { x, y } = getCanvasCoords(e);
             const hit = findObjectAt(x, y);
             if (hit) {
                 draggingItem = hit.id;
-                const { height } = getTextDimensions(hit.lines[0], hit.size);
                 dragOffsetX = x - hit.x;
-                dragOffsetY = y - (hit.y - height);
+                dragOffsetY = y - hit.y;
                 canvas.classList.add('dragging');
                 renderOverlay();
                 e.preventDefault();
             }
         }
+
         function onMouseMove(e) {
             const { x, y } = getCanvasCoords(e);
             if (draggingItem !== null) {
                 const obj = objects.find(o => o.id === draggingItem);
                 if (obj) {
-                    const { height } = getTextDimensions(obj.lines[0], obj.size);
                     obj.x = x - dragOffsetX;
-                    obj.y = (y - dragOffsetY) + height;
+                    obj.y = y - dragOffsetY;
                     renderOverlay();
                 }
                 e.preventDefault();
@@ -403,6 +472,7 @@
                 canvas.style.cursor = findObjectAt(x, y) ? 'grab' : 'default';
             }
         }
+
         function onMouseUp(e) {
             if (draggingItem !== null) {
                 draggingItem = null;
@@ -411,10 +481,14 @@
                 e.preventDefault();
             }
         }
+
         function onDoubleClick(e) {
             const { x, y } = getCanvasCoords(e);
             const hit = findObjectAt(x, y);
-            if (hit) { startEditing(hit.id); e.preventDefault(); }
+            if (hit) {
+                startEditing(hit.id);
+                e.preventDefault();
+            }
         }
 
         // ----- Register Events -----
@@ -447,7 +521,7 @@
             if (draggingItem !== null) window.dispatchEvent(new MouseEvent('mouseup', {}));
         }, { passive: false });
 
-        console.log('✅ Static PDF Editor with Colors & Cover ready!');
+        console.log('✅ Editor ready. Double‑click a text to edit – the Y value is the top of the text box.');
     })();
 </script>
 </body>
