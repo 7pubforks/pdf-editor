@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor - Fonts, Colors, Cover, Fixed Coordinates</title>
+    <title>PDF Editor – Fixed & Safe</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
         .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -37,8 +37,8 @@
 </head>
 <body>
 <div class="container">
-    <h1>🖋️ PDF Editor – Fixed Coordinates</h1>
-    <p>Upload PDF ➕ Add text ➡️ <strong>Double‑click</strong> any text to edit it – X and Y are top‑left corners.</p>
+    <h1>🖋️ PDF Editor – Transform Safe</h1>
+    <p>Upload PDF ➕ Add text ➡️ Double‑click any text to edit it – no more flips!</p>
 
     <div class="toolbar">
         <label>Upload PDF <input type="file" id="fileInput" accept=".pdf"></label>
@@ -157,12 +157,15 @@
 
         function getTextDimensions(text, fontName, size) {
             const width = measureTextWidth(text, fontName, size);
-            const height = size * 1.2; // approximate cap height + descender space
+            const height = size * 1.2;
             return { width, height };
         }
 
-        // ----- Render canvas -----
+        // ----- Render canvas (with transform reset) -----
         async function renderOverlay() {
+            // Reset any accidental transforms
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+
             if (!pdfjsDoc) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 return;
@@ -173,9 +176,13 @@
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
 
+                // Render PDF page (wrap in save/restore for safety)
+                ctx.save();
                 const renderContext = { canvasContext: ctx, viewport: viewport };
                 await page.render(renderContext).promise;
+                ctx.restore();
 
+                // Draw overlays
                 ctx.save();
                 for (let obj of objects) {
                     if (obj.type !== 'text') continue;
@@ -253,7 +260,6 @@
             const cover = coverToggle.checked;
 
             if (editingId !== null) {
-                // Update existing object – direct assignment of new values
                 const obj = objects.find(o => o.id === editingId);
                 if (obj) {
                     obj.lines = [text];
@@ -264,11 +270,10 @@
                     obj.color = color;
                     obj.bgColor = bgColor;
                     obj.cover = cover;
-                    console.log(`Updated object ${obj.id} to (${x}, ${y})`);
                 }
                 cancelEditing();
             } else {
-                const newObj = {
+                objects.push({
                     id: idCounter++,
                     type: 'text',
                     lines: [text],
@@ -277,9 +282,7 @@
                     color: color,
                     bgColor: bgColor,
                     cover: cover
-                };
-                objects.push(newObj);
-                console.log(`Added object ${newObj.id} at (${x}, ${y})`);
+                });
             }
             renderOverlay();
         }
@@ -289,7 +292,6 @@
             const obj = objects.find(o => o.id === id);
             if (!obj) return;
             editingId = id;
-            // Populate inputs exactly with the object's current values
             textInput.value = obj.lines[0];
             xInput.value = obj.x;
             yInput.value = obj.y;
@@ -301,7 +303,6 @@
             actionBtn.textContent = '🔄 Update Text';
             cancelBtn.style.display = 'inline-block';
             renderOverlay();
-            console.log(`Editing object ${id} – current Y: ${obj.y}`);
         }
 
         function cancelEditing() {
@@ -371,7 +372,6 @@
                 for (let obj of objects) {
                     if (obj.type !== 'text') continue;
                     const { width, height: textHeight } = getTextDimensions(obj.lines[0], obj.font, obj.size);
-                    // Convert canvas top-left Y to PDF bottom-left Y
                     const pdfY = height - obj.y - textHeight;
 
                     // Cover
@@ -391,7 +391,7 @@
                     const font = await pdfDoc.embedFont(PDFLib.StandardFonts[obj.font] || PDFLib.StandardFonts.Helvetica);
                     firstPage.drawText(obj.lines[0], {
                         x: obj.x,
-                        y: pdfY + textHeight, // baseline at bottom of box
+                        y: pdfY + textHeight,
                         size: obj.size,
                         font: font,
                         color: PDFLib.rgb(textRgb.r, textRgb.g, textRgb.b),
@@ -483,11 +483,11 @@
         }
 
         function onDoubleClick(e) {
+            e.preventDefault(); // Prevent text selection or other browser actions
             const { x, y } = getCanvasCoords(e);
             const hit = findObjectAt(x, y);
             if (hit) {
                 startEditing(hit.id);
-                e.preventDefault();
             }
         }
 
@@ -521,7 +521,7 @@
             if (draggingItem !== null) window.dispatchEvent(new MouseEvent('mouseup', {}));
         }, { passive: false });
 
-        console.log('✅ Editor ready. Double‑click a text to edit – the Y value is the top of the text box.');
+        console.log('✅ Editor ready with transform reset.');
     })();
 </script>
 </body>
