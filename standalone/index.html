@@ -3,24 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Static PDF Editor</title>
+    <title>Static PDF Editor (Drag & Drop)</title>
     <style>
-        body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; align-items: end; }
         .toolbar label { font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
         .toolbar input, .toolbar button { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
         .toolbar button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
         .toolbar button:hover { background: #0056b3; }
-        canvas { width: 100%; border: 1px solid #ddd; border-radius: 6px; background: #fff; margin-top: 10px; }
-        #status { margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 6px; font-family: monospace; }
+        .toolbar button.danger { background: #dc3545; }
+        .toolbar button.danger:hover { background: #a71d2a; }
+        .toolbar button.success { background: #28a745; }
+        .toolbar button.success:hover { background: #1e7e34; }
+
+        .canvas-wrapper { position: relative; border: 1px solid #ddd; border-radius: 6px; background: #fff; overflow: auto; }
+        canvas { display: block; width: 100%; height: auto; cursor: default; }
+        canvas.dragging { cursor: grabbing; }
+        canvas.drag-hover { cursor: grab; }
+
+        #status { margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 6px; font-family: monospace; min-height: 1.5em; }
+        .object-list { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .object-tag { background: #e9ecef; padding: 4px 10px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+        .object-tag button { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; font-size: 16px; padding: 0 4px; line-height: 1; }
+        .object-tag button:hover { color: #a71d2a; }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <h1>📄 Static PDF Editor</h1>
-    <p>This runs entirely in your browser. No server, no build tools.</p>
+    <h1>📄 Drag & Drop PDF Editor</h1>
+    <p>Upload a PDF ➕ Add text ➡️ <strong>Drag the red text anywhere</strong> ➡️ 💾 Save.</p>
 
     <div class="toolbar">
         <label>Upload PDF <input type="file" id="fileInput" accept=".pdf"></label>
@@ -29,14 +41,19 @@
         <label>Y <input type="number" id="yInput" value="50" step="1"></label>
         <label>Size <input type="number" id="sizeInput" value="24" step="1"></label>
         <button id="addTextBtn">➕ Add Text</button>
-        <button id="saveBtn" style="background: #28a745;">💾 Save PDF</button>
+        <button id="clearBtn" class="danger">🗑️ Clear All</button>
+        <button id="saveBtn" class="success">💾 Save PDF</button>
     </div>
 
-    <canvas id="pdfCanvas"></canvas>
-    <div id="status">📌 Upload a PDF to get started.</div>
+    <div class="canvas-wrapper">
+        <canvas id="pdfCanvas"></canvas>
+    </div>
+    
+    <div id="status">📌 Upload a PDF to get started. Drag the red text to reposition it.</div>
+    <div id="objectList" class="object-list"></div>
 </div>
 
-<!-- Load libraries from CDN (static-host friendly) -->
+<!-- Load libraries from CDN -->
 <script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/pdfjs-dist@2.3.200/build/pdf.min.js"></script>
 
@@ -49,69 +66,114 @@
         const yInput = document.getElementById('yInput');
         const sizeInput = document.getElementById('sizeInput');
         const addBtn = document.getElementById('addTextBtn');
+        const clearBtn = document.getElementById('clearBtn');
         const saveBtn = document.getElementById('saveBtn');
         const canvas = document.getElementById('pdfCanvas');
         const ctx = canvas.getContext('2d');
         const statusDiv = document.getElementById('status');
+        const objectListDiv = document.getElementById('objectList');
 
         // ----- App state -----
-        let pdfFile = null;             // The raw File object
-        let pdfDoc = null;             // PDFLib document (for editing)
-        let pdfjsDoc = null;           // PDFJS document (for preview)
+        let pdfFile = null;
+        let pdfDoc = null;          // PDFLib
+        let pdfjsDoc = null;        // PDFJS
         let pageCount = 0;
         let currentPageIndex = 0;
-        let pageHeight = 0;
-        let pageWidth = 0;
-        let scale = 1;
+        let scale = 1.5;
+        let objects = [];           // { id, type, x, y, lines, size, fontFamily, lineHeight, width, height }
+        let idCounter = 0;
 
-        // Store added objects (same structure as original PDF.js)
-        let objects = []; // Each item: { type: 'text', x, y, lines: [...], size, fontFamily, lineHeight, width, height }
+        // Drag state
+        let draggingItem = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
 
-        // ----- Helper: render preview using pdfjs -----
-        async function renderPage(pageIndex) {
-            if (!pdfjsDoc) return;
+        // ----- Helper functions -----
+        function getTextDimensions(text, size) {
+            // Rough but effective bounding box for hit-testing and drawing
+            const width = text.length * size * 0.6;
+            const height = size * 1.2;
+            return { width, height };
+        }
+
+        // ----- Render preview + overlay -----
+        async function renderOverlay() {
+            if (!pdfjsDoc) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
             try {
-                const page = await pdfjsDoc.getPage(pageIndex + 1);
-                const viewport = page.getViewport({ scale: 1.5 });
+                const page = await pdfjsDoc.getPage(currentPageIndex + 1);
+                const viewport = page.getViewport({ scale: scale });
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
-                scale = 1.5;
 
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
+                const renderContext = { canvasContext: ctx, viewport: viewport };
                 await page.render(renderContext).promise;
 
-                // Store dimensions for coordinate mapping
-                pageWidth = viewport.width;
-                pageHeight = viewport.height;
-                statusDiv.innerText = `📄 Page ${pageIndex + 1} of ${pageCount} rendered. Add text below.`;
+                // Draw the text objects on top (in reverse order so newer ones are on top)
+                ctx.save();
+                for (let obj of objects) {
+                    if (obj.type === 'text') {
+                        const { width, height } = getTextDimensions(obj.lines[0], obj.size);
+                        const x = obj.x;
+                        const y = obj.y; // baseline
+
+                        // Draw a semi-transparent background for better visibility
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                        ctx.fillRect(x, y - height, width, height);
+
+                        // Draw border when dragging
+                        if (draggingItem === obj.id) {
+                            ctx.strokeStyle = '#ff00ff';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([4, 4]);
+                            ctx.strokeRect(x, y - height, width, height);
+                            ctx.setLineDash([]);
+                        } else {
+                            // Light blue border for all objects
+                            ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(x, y - height, width, height);
+                        }
+
+                        // Draw text
+                        ctx.font = `${obj.size}px Arial, sans-serif`;
+                        ctx.fillStyle = '#ff0000';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(obj.lines[0], x, y);
+                    }
+                }
+                ctx.restore();
+
+                updateObjectList();
+                statusDiv.innerText = `📄 Page ${currentPageIndex + 1} of ${pageCount} | ${objects.length} object(s) placed. Drag them!`;
             } catch (e) {
                 console.error("Render error:", e);
                 statusDiv.innerText = "⚠️ Error rendering page.";
             }
         }
 
-        // ----- Load PDF file -----
+        // ----- Load PDF -----
         async function loadPDF(file) {
             pdfFile = file;
-            objects = []; // reset edits
+            objects = [];
+            idCounter = 0;
+            draggingItem = null;
             const arrayBuffer = await file.arrayBuffer();
 
-            // 1. Load for editing (PDFLib)
             pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
             pageCount = pdfDoc.getPageCount();
 
-            // 2. Load for preview (pdfjs)
             const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
             pdfjsDoc = await loadingTask.promise;
 
             currentPageIndex = 0;
-            await renderPage(0);
+            await renderOverlay();
         }
 
-        // ----- Add text to the internal state (and re-render preview overlay) -----
+        // ----- Add text -----
         function addTextToState() {
             if (!pdfDoc) {
                 alert('Please upload a PDF first.');
@@ -123,51 +185,65 @@
             const y = parseFloat(yInput.value) || 50;
             const size = parseFloat(sizeInput.value) || 24;
 
-            // Store object (using PDFLib coordinates: y is from BOTTOM of page)
-            // We use a simple object structure.
-            objects.push({
+            const obj = {
+                id: idCounter++,
                 type: 'text',
                 x: x,
                 y: y,
                 lines: [text],
                 size: size,
-                fontFamily: 'Helvetica', // built-in
+                fontFamily: 'Helvetica',
                 lineHeight: 1.2,
                 width: 200,
                 height: size * 1.2
-            });
-
-            // Re-render the preview with the text overlay
-            renderOverlay();
-            statusDiv.innerText = `✅ Added "${text}" at (${x}, ${y})`;
-        }
-
-        // ----- Render preview + overlay (simulates the Svelte components) -----
-        async function renderOverlay() {
-            if (!pdfjsDoc) return;
-            // Re-render the background page first
-            const page = await pdfjsDoc.getPage(currentPageIndex + 1);
-            const viewport = page.getViewport({ scale: scale });
-            const renderContext = {
-                canvasContext: ctx,
-                viewport: viewport
             };
-            await page.render(renderContext).promise;
-
-            // Now draw the text objects on top (using canvas 2D)
-            // Note: The original app uses PDFLib to draw, but for preview we just simulate.
-            ctx.save();
-            for (let obj of objects) {
-                if (obj.type === 'text') {
-                    ctx.font = `${obj.size}px Arial, sans-serif`;
-                    ctx.fillStyle = '#ff0000'; // red color to see it clearly
-                    ctx.fillText(obj.lines[0], obj.x, obj.y);
-                }
-            }
-            ctx.restore();
+            objects.push(obj);
+            renderOverlay();
         }
 
-        // ----- Save the PDF with applied edits using PDFLib -----
+        // ----- Clear all objects -----
+        function clearAll() {
+            if (objects.length === 0) return;
+            if (confirm('Remove all added objects?')) {
+                objects = [];
+                idCounter = 0;
+                draggingItem = null;
+                renderOverlay();
+            }
+        }
+
+        // ----- Delete single object (by ID) -----
+        function deleteObject(id) {
+            objects = objects.filter(o => o.id !== id);
+            if (draggingItem === id) draggingItem = null;
+            renderOverlay();
+        }
+
+        // ----- Update the tag list UI -----
+        function updateObjectList() {
+            if (objects.length === 0) {
+                objectListDiv.innerHTML = '<span style="color: #6c757d; font-size: 14px;">No objects added yet.</span>';
+                return;
+            }
+            let html = '';
+            for (let obj of objects) {
+                html += `<span class="object-tag">
+                            ${obj.lines[0]} (${Math.round(obj.x)}, ${Math.round(obj.y)})
+                            <button data-id="${obj.id}" class="delete-btn" title="Delete this object">×</button>
+                         </span>`;
+            }
+            objectListDiv.innerHTML = html;
+            // Attach delete events
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.dataset.id, 10);
+                    deleteObject(id);
+                });
+            });
+        }
+
+        // ----- Save PDF -----
         async function savePDF() {
             if (!pdfDoc || !pdfFile) {
                 alert('No PDF loaded.');
@@ -175,19 +251,15 @@
             }
 
             try {
-                // Get the first page (or all pages if you want)
                 const pages = pdfDoc.getPages();
                 const firstPage = pages[0];
                 const { height } = firstPage.getSize();
-
-                // Embed standard font
                 const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
 
-                // Apply all text objects to the PDF
+                // Apply all objects
                 for (let obj of objects) {
                     if (obj.type === 'text') {
-                        // PDFLib Y starts from bottom, so convert Y
-                        const pdfY = height - obj.y;
+                        const pdfY = height - obj.y; // Convert canvas Y (top-left) to PDF Y (bottom-left)
                         firstPage.drawText(obj.lines[0], {
                             x: obj.x,
                             y: pdfY,
@@ -198,10 +270,7 @@
                     }
                 }
 
-                // Save the PDF
                 const pdfBytes = await pdfDoc.save();
-
-                // Trigger download
                 const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
@@ -218,24 +287,135 @@
             }
         }
 
-        // ----- Event Listeners -----
+        // ----- DRAG AND DROP LOGIC (Mouse Events) -----
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;   // canvas physical size / CSS size
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function findObjectAt(mx, my) {
+            // Iterate backwards so topmost objects (last added) are selected first
+            for (let i = objects.length - 1; i >= 0; i--) {
+                const obj = objects[i];
+                if (obj.type !== 'text') continue;
+                const { width, height } = getTextDimensions(obj.lines[0], obj.size);
+                // Bounding box: from (x, y - height) to (x + width, y)
+                if (mx >= obj.x && mx <= obj.x + width &&
+                    my >= obj.y - height && my <= obj.y) {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        function onMouseDown(e) {
+            if (objects.length === 0) return;
+            const { x, y } = getCanvasCoords(e);
+            const hit = findObjectAt(x, y);
+            if (hit) {
+                draggingItem = hit.id;
+                // offset from the object's top-left corner (baseline y - height)
+                const { height } = getTextDimensions(hit.lines[0], hit.size);
+                dragOffsetX = x - hit.x;
+                dragOffsetY = y - (hit.y - height); // offset from top-left corner
+                canvas.classList.add('dragging');
+                canvas.classList.remove('drag-hover');
+                renderOverlay(); // to show the purple border
+                e.preventDefault();
+            }
+        }
+
+        function onMouseMove(e) {
+            const { x, y } = getCanvasCoords(e);
+            if (draggingItem !== null) {
+                const obj = objects.find(o => o.id === draggingItem);
+                if (obj) {
+                    const { height } = getTextDimensions(obj.lines[0], obj.size);
+                    // Set new position based on top-left corner offset
+                    obj.x = x - dragOffsetX;
+                    obj.y = (y - dragOffsetY) + height; // convert back to baseline
+                    renderOverlay(); // re-render to show updated position
+                }
+                e.preventDefault();
+            } else {
+                // Change cursor if hovering over an object
+                const hit = findObjectAt(x, y);
+                if (hit) {
+                    canvas.classList.add('drag-hover');
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.classList.remove('drag-hover');
+                    canvas.style.cursor = 'default';
+                }
+            }
+        }
+
+        function onMouseUp(e) {
+            if (draggingItem !== null) {
+                draggingItem = null;
+                canvas.classList.remove('dragging');
+                canvas.style.cursor = 'default';
+                renderOverlay(); // remove the purple border
+                e.preventDefault();
+            }
+        }
+
+        // ----- Register events -----
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (file) {
-                loadPDF(file);
-            }
+            if (file) loadPDF(file);
         });
 
         addBtn.addEventListener('click', addTextToState);
-
+        clearBtn.addEventListener('click', clearAll);
         saveBtn.addEventListener('click', savePDF);
 
-        // Optional: Re-render when changing inputs, but we'll keep it manual.
+        // Canvas mouse events for drag & drop
+        canvas.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
 
-        // Handle new page loading if multi-page? For simplicity, keep page 0.
-        // You can extend this to cycle pages.
+        // Touch events for mobile drag support
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }, { passive: false });
 
-        console.log('✅ Static PDF Editor ready!');
+        window.addEventListener('touchmove', (e) => {
+            if (draggingItem !== null) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
+                });
+                window.dispatchEvent(mouseEvent);
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            if (draggingItem !== null) {
+                const mouseEvent = new MouseEvent('mouseup', {});
+                window.dispatchEvent(mouseEvent);
+            }
+        }, { passive: false });
+
+        // Press Enter in text input to add quickly
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTextToState();
+        });
+
+        console.log('✅ Static PDF Editor with Drag & Drop ready!');
     })();
 </script>
 </body>
