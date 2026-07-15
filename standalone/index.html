@@ -3,48 +3,294 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PDF Editor – Delete Any Item</title>
+    <title>PDF Editor – Modern</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet" />
     <style>
-        body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
-        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; align-items: end; }
-        .toolbar label { font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
-        .toolbar input, .toolbar select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
-        .toolbar input[type="text"] { width: 140px; }
-        .toolbar input[type="number"] { width: 70px; }
-        .toolbar select { width: 130px; }
-        .toolbar input[type="color"] { width: 40px; height: 40px; padding: 2px; }
-        .toolbar .checkbox-group { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
-        .toolbar button { padding: 8px 16px; border-radius: 6px; font-size: 14px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
-        .toolbar button:hover { background: #0056b3; }
-        .toolbar button.danger { background: #dc3545; }
-        .toolbar button.danger:hover { background: #a71d2a; }
-        .toolbar button.success { background: #28a745; }
-        .toolbar button.success:hover { background: #1e7e34; }
-        .toolbar button.secondary { background: #6c757d; }
-        .toolbar button.secondary:hover { background: #5a6268; }
-        .toolbar button.delete-selected { background: #dc3545; }
-        .toolbar button.delete-selected:hover { background: #a71d2a; }
-        .canvas-wrapper { position: relative; border: 1px solid #ddd; border-radius: 6px; background: #fff; overflow: auto; }
-        canvas { display: block; width: 100%; height: auto; cursor: default; }
+        /* ----- Reset & Base ----- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(145deg, #f8fafc 0%, #eef2ff 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 32px 36px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 20, 80, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        /* ----- Header ----- */
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+        .subhead {
+            color: #64748b;
+            font-size: 15px;
+            font-weight: 400;
+            margin-bottom: 24px;
+            border-left: 3px solid #818cf8;
+            padding-left: 16px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* ----- Toolbar (Modern) ----- */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px 18px;
+            margin: 24px 0 28px 0;
+            padding: 20px 24px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            align-items: end;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .toolbar label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #475569;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .toolbar input,
+        .toolbar select {
+            padding: 10px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            background: white;
+            transition: all 0.2s ease;
+            min-width: 70px;
+            color: #0f172a;
+        }
+        .toolbar input[type="text"] { min-width: 130px; }
+        .toolbar input[type="number"] { min-width: 70px; }
+        .toolbar select { min-width: 120px; cursor: pointer; }
+        .toolbar input:focus,
+        .toolbar select:focus {
+            outline: none;
+            border-color: #818cf8;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+        }
+        .toolbar input[type="color"] {
+            width: 44px;
+            height: 44px;
+            padding: 4px;
+            border-radius: 14px;
+            cursor: pointer;
+            background: white;
+        }
+
+        .toolbar .checkbox-group {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #334155;
+            padding-top: 6px;
+        }
+        .toolbar .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4f46e5;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        /* ----- Buttons (Modern) ----- */
+        .toolbar button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+        .toolbar button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+        .toolbar button:active { transform: translateY(0); }
+
+        .btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+        .btn-primary:hover { box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3); }
+
+        .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn-success:hover { box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3); }
+
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .btn-danger:hover { box-shadow: 0 8px 20px rgba(239, 68, 68, 0.25); }
+
+        .btn-secondary { background: #94a3b8; color: #1e293b; }
+        .btn-secondary:hover { background: #64748b; color: white; box-shadow: 0 8px 20px rgba(100, 116, 139, 0.2); }
+
+        .btn-delete { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .btn-delete:hover { box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3); }
+
+        /* ----- Canvas ----- */
+        .canvas-wrapper {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8);
+            border: 1px solid #e9edf4;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: default;
+            background: #ffffff;
+        }
         canvas.dragging { cursor: grabbing; }
         canvas.drag-hover { cursor: grab; }
-        #status { margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 6px; font-family: monospace; min-height: 1.5em; }
-        .object-list { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 6px; }
-        .object-tag { background: #e9ecef; padding: 4px 10px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
-        .object-tag .color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #ccc; }
-        .object-tag .edit-btn { background: none; border: none; color: #007bff; cursor: pointer; font-size: 14px; padding: 0 4px; }
-        .object-tag .delete-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; font-size: 16px; padding: 0 4px; }
-        .object-tag .delete-btn:hover { color: #a71d2a; }
+
+        /* ----- Status Bar ----- */
+        #status {
+            margin-top: 16px;
+            padding: 12px 18px;
+            background: #f8fafc;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #334155;
+            border: 1px solid #e9edf4;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: auto;
+            font-family: 'Inter', monospace;
+        }
+        #status::before { content: '●'; color: #10b981; font-size: 10px; }
+
+        /* ----- Object List (Chips) ----- */
+        .object-list {
+            margin-top: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            min-height: 40px;
+        }
+        .object-tag {
+            background: #f1f5f9;
+            padding: 6px 14px 6px 12px;
+            border-radius: 40px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1.5px solid transparent;
+            transition: all 0.15s ease;
+            font-weight: 500;
+            color: #1e293b;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+        .object-tag:hover { background: #e9edf4; border-color: #cbd5e1; }
+        .object-tag.editing {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+        }
+        .object-tag .color-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.08);
+            flex-shrink: 0;
+        }
+        .object-tag .edit-btn,
+        .object-tag .delete-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            padding: 0 2px;
+            line-height: 1;
+            opacity: 0.6;
+            transition: opacity 0.15s;
+            display: inline-flex;
+            align-items: center;
+        }
+        .object-tag .edit-btn { color: #4f46e5; }
+        .object-tag .delete-btn { color: #ef4444; font-weight: 700; }
+        .object-tag .edit-btn:hover,
+        .object-tag .delete-btn:hover { opacity: 1; }
+
+        .empty-state {
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 400;
+            padding: 6px 0;
+        }
+
+        /* ----- Responsive tweaks ----- */
+        @media (max-width: 768px) {
+            .container { padding: 20px 16px; }
+            .toolbar { padding: 16px; gap: 12px; }
+            .toolbar label { font-size: 11px; }
+            .toolbar input, .toolbar select { padding: 8px 10px; font-size: 13px; min-width: 60px; }
+            .toolbar button { padding: 8px 14px; font-size: 13px; }
+            h1 { font-size: 22px; }
+        }
+        @media (max-width: 480px) {
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .toolbar label { width: 100%; }
+            .toolbar input, .toolbar select { width: 100%; }
+            .checkbox-group { justify-content: flex-start; }
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🖋️ PDF Editor – Delete Any Item</h1>
-    <p>Upload PDF ➕ Add text ➡️ Double‑click to edit – then click <strong>Delete Selected</strong> or press <kbd>Delete</kbd>.</p>
+    <h1>🖋️ PDF Editor</h1>
+    <div class="subhead">
+        Upload a PDF · Add text · Drag to reposition · Double‑click to edit · Delete any item
+    </div>
 
     <div class="toolbar">
-        <label>Upload PDF <input type="file" id="fileInput" accept=".pdf" /></label>
+        <label>Upload <input type="file" id="fileInput" accept=".pdf" /></label>
         <label>Text <input type="text" id="textInput" value="Hello World" /></label>
         <label>X <input type="number" id="xInput" value="50" step="1" /></label>
         <label>Y <input type="number" id="yInput" value="50" step="1" /></label>
@@ -73,21 +319,22 @@
             <input type="checkbox" id="coverToggle" checked />
             <label for="coverToggle" style="font-weight:400; cursor:pointer;">Cover original</label>
         </div>
-        <button id="actionBtn">➕ Add Text</button>
-        <button id="cancelBtn" class="secondary" style="display:none;">✖ Cancel</button>
-        <button id="deleteSelectedBtn" class="delete-selected" style="display:none;">🗑️ Delete Selected</button>
-        <button id="clearBtn" class="danger">🗑️ Clear All</button>
-        <button id="saveBtn" class="success">💾 Save PDF</button>
+        <button id="actionBtn" class="btn-primary">➕ Add</button>
+        <button id="cancelBtn" class="btn-secondary" style="display:none;">✖ Cancel</button>
+        <button id="deleteSelectedBtn" class="btn-delete" style="display:none;">🗑️ Delete</button>
+        <button id="clearBtn" class="btn-danger">🗑️ Clear All</button>
+        <button id="saveBtn" class="btn-success">💾 Save PDF</button>
     </div>
 
     <div class="canvas-wrapper">
         <canvas id="pdfCanvas" willReadFrequently="true"></canvas>
     </div>
-    
-    <div id="status">📌 Upload a PDF. Double‑click any text to edit it.</div>
-    <div id="objectList" class="object-list"></div>
+
+    <div id="status">📌 Upload a PDF to get started</div>
+    <div id="objectList" class="object-list"><span class="empty-state">No objects added yet.</span></div>
 </div>
 
+<!-- CDN Libraries -->
 <script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/pdfjs-dist@2.3.200/build/pdf.min.js"></script>
 
@@ -126,7 +373,6 @@
         let draggingItem = null;
         let dragOffsetX = 0, dragOffsetY = 0;
 
-        // Render lock
         let isRendering = false;
         let pendingRender = false;
 
@@ -223,7 +469,7 @@
 
                 updateObjectList();
                 const editStatus = editingId !== null ? ' ✏️ Editing...' : '';
-                statusDiv.innerText = `📄 Page ${currentPageIndex+1} of ${pageCount} | ${objects.length} object(s)${editStatus}`;
+                statusDiv.innerText = `📄 Page ${currentPageIndex+1} of ${pageCount} · ${objects.length} object(s)${editStatus}`;
             } catch (err) {
                 if (err.name !== 'RenderingCancelledException') {
                     console.error(err);
@@ -254,7 +500,7 @@
             pdfjsDoc = await loadingTask.promise;
 
             currentPageIndex = 0;
-            actionBtn.textContent = '➕ Add Text';
+            actionBtn.textContent = '➕ Add';
             cancelBtn.style.display = 'none';
             deleteSelectedBtn.style.display = 'none';
             await renderOverlay();
@@ -314,28 +560,26 @@
             colorInput.value = obj.color || '#ff0000';
             bgColorInput.value = obj.bgColor || '#ffffff';
             coverToggle.checked = obj.cover !== undefined ? obj.cover : true;
-            actionBtn.textContent = '🔄 Update Text';
-            cancelBtn.style.display = 'inline-block';
-            deleteSelectedBtn.style.display = 'inline-block';
+            actionBtn.textContent = '🔄 Update';
+            cancelBtn.style.display = 'inline-flex';
+            deleteSelectedBtn.style.display = 'inline-flex';
             renderOverlay();
         }
 
         function cancelEditing() {
             editingId = null;
-            actionBtn.textContent = '➕ Add Text';
+            actionBtn.textContent = '➕ Add';
             cancelBtn.style.display = 'none';
             deleteSelectedBtn.style.display = 'none';
             renderOverlay();
         }
 
-        // Delete the currently selected object (the one being edited)
         function deleteSelected() {
             if (editingId === null) return;
             if (!confirm('Delete this text object?')) return;
             deleteObject(editingId);
         }
 
-        // Delete by ID (used by × buttons and deleteSelected)
         function deleteObject(id) {
             objects = objects.filter(o => o.id !== id);
             if (editingId === id) cancelEditing();
@@ -343,7 +587,6 @@
             renderOverlay();
         }
 
-        // Clear all
         function clearAll() {
             if (objects.length === 0) return;
             if (confirm('Remove all added objects?')) {
@@ -353,21 +596,21 @@
             }
         }
 
-        // ----- UI List -----
+        // ----- UI List (Modern) -----
         function updateObjectList() {
             if (objects.length === 0) {
-                objectListDiv.innerHTML = '<span style="color: #6c757d; font-size: 14px;">No objects added.</span>';
+                objectListDiv.innerHTML = '<span class="empty-state">No objects added yet.</span>';
                 return;
             }
             let html = '';
             for (let obj of objects) {
                 const isEditing = (obj.id === editingId);
                 const dotColor = obj.color || '#ff0000';
-                html += `<span class="object-tag" style="${isEditing ? 'background: #ffc107;' : ''}">
+                html += `<span class="object-tag ${isEditing ? 'editing' : ''}">
                             <span class="color-dot" style="background:${dotColor};"></span>
                             ${obj.lines[0]} (${Math.round(obj.x)}, ${Math.round(obj.y)})
-                            <button class="edit-btn" data-id="${obj.id}">✏️</button>
-                            <button class="delete-btn" data-id="${obj.id}">×</button>
+                            <button class="edit-btn" data-id="${obj.id}" title="Edit">✏️</button>
+                            <button class="delete-btn" data-id="${obj.id}" title="Delete">✕</button>
                          </span>`;
             }
             objectListDiv.innerHTML = html;
@@ -445,7 +688,7 @@
             } : { r: 0, g: 0, b: 0 };
         }
 
-        // ----- Drag & Drop (throttled) -----
+        // ----- Drag & Drop -----
         function getCanvasCoords(e) {
             const rect = canvas.getBoundingClientRect();
             return {
@@ -523,7 +766,6 @@
             }
         }
 
-        // ----- Keyboard: Delete key while editing -----
         function onKeyDown(e) {
             if (editingId !== null && (e.key === 'Delete' || e.key === 'Backspace')) {
                 e.preventDefault();
@@ -563,7 +805,7 @@
             if (draggingItem !== null) window.dispatchEvent(new MouseEvent('mouseup', {}));
         }, { passive: false });
 
-        console.log('✅ Editor ready – delete selected button and keyboard support added.');
+        console.log('✅ Modern PDF Editor ready!');
     })();
 </script>
 </body>
