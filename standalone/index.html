@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Static PDF Editor</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 20px; background: #f4f6f8; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; align-items: end; }
+        .toolbar label { font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+        .toolbar input, .toolbar button { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .toolbar button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
+        .toolbar button:hover { background: #0056b3; }
+        canvas { width: 100%; border: 1px solid #ddd; border-radius: 6px; background: #fff; margin-top: 10px; }
+        #status { margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 6px; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📄 Static PDF Editor</h1>
+    <p>This runs entirely in your browser. No server, no build tools.</p>
+
+    <div class="toolbar">
+        <label>Upload PDF <input type="file" id="fileInput" accept=".pdf"></label>
+        <label>Text <input type="text" id="textInput" value="Hello World"></label>
+        <label>X <input type="number" id="xInput" value="50" step="1"></label>
+        <label>Y <input type="number" id="yInput" value="50" step="1"></label>
+        <label>Size <input type="number" id="sizeInput" value="24" step="1"></label>
+        <button id="addTextBtn">➕ Add Text</button>
+        <button id="saveBtn" style="background: #28a745;">💾 Save PDF</button>
+    </div>
+
+    <canvas id="pdfCanvas"></canvas>
+    <div id="status">📌 Upload a PDF to get started.</div>
+</div>
+
+<!-- Load libraries from CDN (static-host friendly) -->
+<script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
+<script src="https://unpkg.com/pdfjs-dist@2.3.200/build/pdf.min.js"></script>
+
+<script>
+    (function() {
+        // ----- DOM refs -----
+        const fileInput = document.getElementById('fileInput');
+        const textInput = document.getElementById('textInput');
+        const xInput = document.getElementById('xInput');
+        const yInput = document.getElementById('yInput');
+        const sizeInput = document.getElementById('sizeInput');
+        const addBtn = document.getElementById('addTextBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusDiv = document.getElementById('status');
+
+        // ----- App state -----
+        let pdfFile = null;             // The raw File object
+        let pdfDoc = null;             // PDFLib document (for editing)
+        let pdfjsDoc = null;           // PDFJS document (for preview)
+        let pageCount = 0;
+        let currentPageIndex = 0;
+        let pageHeight = 0;
+        let pageWidth = 0;
+        let scale = 1;
+
+        // Store added objects (same structure as original PDF.js)
+        let objects = []; // Each item: { type: 'text', x, y, lines: [...], size, fontFamily, lineHeight, width, height }
+
+        // ----- Helper: render preview using pdfjs -----
+        async function renderPage(pageIndex) {
+            if (!pdfjsDoc) return;
+            try {
+                const page = await pdfjsDoc.getPage(pageIndex + 1);
+                const viewport = page.getViewport({ scale: 1.5 });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                scale = 1.5;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                await page.render(renderContext).promise;
+
+                // Store dimensions for coordinate mapping
+                pageWidth = viewport.width;
+                pageHeight = viewport.height;
+                statusDiv.innerText = `📄 Page ${pageIndex + 1} of ${pageCount} rendered. Add text below.`;
+            } catch (e) {
+                console.error("Render error:", e);
+                statusDiv.innerText = "⚠️ Error rendering page.";
+            }
+        }
+
+        // ----- Load PDF file -----
+        async function loadPDF(file) {
+            pdfFile = file;
+            objects = []; // reset edits
+            const arrayBuffer = await file.arrayBuffer();
+
+            // 1. Load for editing (PDFLib)
+            pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+            pageCount = pdfDoc.getPageCount();
+
+            // 2. Load for preview (pdfjs)
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
+            pdfjsDoc = await loadingTask.promise;
+
+            currentPageIndex = 0;
+            await renderPage(0);
+        }
+
+        // ----- Add text to the internal state (and re-render preview overlay) -----
+        function addTextToState() {
+            if (!pdfDoc) {
+                alert('Please upload a PDF first.');
+                return;
+            }
+
+            const text = textInput.value || 'Hello';
+            const x = parseFloat(xInput.value) || 50;
+            const y = parseFloat(yInput.value) || 50;
+            const size = parseFloat(sizeInput.value) || 24;
+
+            // Store object (using PDFLib coordinates: y is from BOTTOM of page)
+            // We use a simple object structure.
+            objects.push({
+                type: 'text',
+                x: x,
+                y: y,
+                lines: [text],
+                size: size,
+                fontFamily: 'Helvetica', // built-in
+                lineHeight: 1.2,
+                width: 200,
+                height: size * 1.2
+            });
+
+            // Re-render the preview with the text overlay
+            renderOverlay();
+            statusDiv.innerText = `✅ Added "${text}" at (${x}, ${y})`;
+        }
+
+        // ----- Render preview + overlay (simulates the Svelte components) -----
+        async function renderOverlay() {
+            if (!pdfjsDoc) return;
+            // Re-render the background page first
+            const page = await pdfjsDoc.getPage(currentPageIndex + 1);
+            const viewport = page.getViewport({ scale: scale });
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            await page.render(renderContext).promise;
+
+            // Now draw the text objects on top (using canvas 2D)
+            // Note: The original app uses PDFLib to draw, but for preview we just simulate.
+            ctx.save();
+            for (let obj of objects) {
+                if (obj.type === 'text') {
+                    ctx.font = `${obj.size}px Arial, sans-serif`;
+                    ctx.fillStyle = '#ff0000'; // red color to see it clearly
+                    ctx.fillText(obj.lines[0], obj.x, obj.y);
+                }
+            }
+            ctx.restore();
+        }
+
+        // ----- Save the PDF with applied edits using PDFLib -----
+        async function savePDF() {
+            if (!pdfDoc || !pdfFile) {
+                alert('No PDF loaded.');
+                return;
+            }
+
+            try {
+                // Get the first page (or all pages if you want)
+                const pages = pdfDoc.getPages();
+                const firstPage = pages[0];
+                const { height } = firstPage.getSize();
+
+                // Embed standard font
+                const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+                // Apply all text objects to the PDF
+                for (let obj of objects) {
+                    if (obj.type === 'text') {
+                        // PDFLib Y starts from bottom, so convert Y
+                        const pdfY = height - obj.y;
+                        firstPage.drawText(obj.lines[0], {
+                            x: obj.x,
+                            y: pdfY,
+                            size: obj.size,
+                            font: font,
+                            color: PDFLib.rgb(0, 0, 0),
+                        });
+                    }
+                }
+
+                // Save the PDF
+                const pdfBytes = await pdfDoc.save();
+
+                // Trigger download
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'edited_document.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+                statusDiv.innerText = '✅ PDF saved and downloaded successfully!';
+            } catch (e) {
+                console.error(e);
+                alert('Failed to save PDF: ' + e.message);
+            }
+        }
+
+        // ----- Event Listeners -----
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                loadPDF(file);
+            }
+        });
+
+        addBtn.addEventListener('click', addTextToState);
+
+        saveBtn.addEventListener('click', savePDF);
+
+        // Optional: Re-render when changing inputs, but we'll keep it manual.
+
+        // Handle new page loading if multi-page? For simplicity, keep page 0.
+        // You can extend this to cycle pages.
+
+        console.log('✅ Static PDF Editor ready!');
+    })();
+</script>
+</body>
+</html>
